@@ -441,7 +441,7 @@ async def test_http_token_and_protocol_eras():
             raw.fail(f"supportedVersions: {result['supportedVersions']}")
         if (result.get("resultType"), result.get("ttlMs"), result.get("cacheScope")) != ("complete", 0, "private"):
             raw.fail(f"server/discover hints: {result}")
-        if result.get("_meta", {}).get("io.modelcontextprotocol/serverInfo", {}).get("name") != "jasperengine-editor":
+        if result.get("_meta", {}).get("io.modelcontextprotocol/serverInfo", {}).get("name") != "allioengine-editor":
             raw.fail(f"server/discover _meta serverInfo: {result.get('_meta')}")
 
         call = {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": modern_params(name="editor_status", arguments={})}

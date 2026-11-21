@@ -474,7 +474,7 @@ bool appendMenuItems(NSMenu* menu,
 #endif
 
 void appendApplicationMenu(NSMenu* mainMenu, const std::vector<PlatformMenuItem>& applicationItems = {}) {
-    NSString* applicationName = @"JasperEngine";
+    NSString* applicationName = @"AllioEngine";
     NSMenuItem* root = [[NSMenuItem alloc]
         initWithTitle:applicationName action:nil keyEquivalent:@""];
     NSMenu* menu = [[NSMenu alloc] initWithTitle:applicationName];
@@ -903,7 +903,7 @@ int editor::Backend::init(int argc, char* argv[]) {
         }
 
         WindowMacConfig windowConfig;
-        windowConfig.title = "JasperEngine";
+        windowConfig.title = "AllioEngine";
         // Cocoa sizes windows in points, which are already scale independent.
         windowConfig.width = app.getInitialWindowWidth(1.0f);
         windowConfig.height = app.getInitialWindowHeight(1.0f);
@@ -1354,8 +1354,8 @@ sg_swapchain editor::Backend::getSokolSwapchain() {
 
 void editor::Backend::updateWindowTitle(const std::string& projectName) {
     const std::string title = projectName.empty()
-        ? "Empty project - JasperEngine"
-        : projectName + " - JasperEngine";
+        ? "Empty project - AllioEngine"
+        : projectName + " - AllioEngine";
     WindowMac::setTitle(title);
 }
 

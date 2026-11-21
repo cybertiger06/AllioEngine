@@ -58,7 +58,7 @@ TitleArtProjectCheck editor::checkTitleArtFiles(const fs::path& projectRoot, con
             f.suggestion = suggestion;
             check.findings.push_back(std::move(f));
         };
-        const std::string regenerate = "jasperengine-editor call export_title --project " + projectRoot.generic_string() + " path=" + relative;
+        const std::string regenerate = "allioengine-editor call export_title --project " + projectRoot.generic_string() + " path=" + relative;
         std::string text;
         if (!assetio::readFile(document, text)) {
             add("error", "title-parse-failed", "cannot read the file", "");

@@ -7,7 +7,7 @@
 #include "Backend.h"
 #include "EditorVersion.h"
 #include "Theme.h"
-#include "resources/icons/jasperengine-logo_png.h"
+#include "StudioArtwork.h"
 
 #include <algorithm>
 
@@ -15,7 +15,7 @@ namespace jasperengine::editor {
 
 namespace {
     static constexpr float aboutDialogWidth = 440.0f;
-    static constexpr float logoWidth = 150.0f;
+    static constexpr float logoWidth = 240.0f;
     static constexpr float buttonWidth = 120.0f;
 
     void centeredText(const char* text) {
@@ -30,7 +30,7 @@ void AboutWindow::open() {
 
     if (!m_logoLoaded) {
         TextureData data;
-        data.loadTextureFromMemory(jasperengine_logo_png, jasperengine_logo_png_len);
+        data.loadTextureFromMemory(studioWordmark, sizeof(studioWordmark));
         m_logo.setData("editor:about:logo", data);
         m_logo.load();
         m_logoLoaded = true;
@@ -40,7 +40,7 @@ void AboutWindow::open() {
 void AboutWindow::show() {
     if (!m_isOpen) return;
 
-    ImGui::OpenPopup("About JasperEngine##AboutModal");
+    ImGui::OpenPopup("About AllioEngine##AboutModal");
 
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
@@ -51,7 +51,7 @@ void AboutWindow::show() {
                              ImGuiWindowFlags_NoSavedSettings |
                              ImGuiWindowFlags_Modal;
 
-    if (EditorModal::begin("About JasperEngine##AboutModal", &m_isOpen, flags)) {
+    if (EditorModal::begin("About AllioEngine##AboutModal", &m_isOpen, flags)) {
         if (!m_isOpen) {
             ImGui::CloseCurrentPopup();
         } else {
@@ -72,9 +72,10 @@ void AboutWindow::drawAbout() {
     }
 
     centeredText("Version: " JASPERENGINE_EDITOR_VERSION);
-    centeredText("Developed by JasperDev");
+    centeredText("AllioEngine by Allio Studio");
+    centeredText("Based on JasperEngine by Arakuma Studio");
     centeredText("Based on Doriax by Eduardo Doria and contributors");
-    EditorModal::message("JasperEngine editor " JASPERENGINE_EDITOR_VERSION);
+    EditorModal::message("AllioEngine editor " JASPERENGINE_EDITOR_VERSION);
 
     ImGui::Separator();
 

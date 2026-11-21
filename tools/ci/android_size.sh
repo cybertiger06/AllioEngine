@@ -25,7 +25,7 @@ for arg in "$@"; do
     esac
 done
 step() { echo; echo "=== $*"; }
-[[ -x build/linux/editor-install/bin/jasperengine-editor ]] || { echo "no editor install: tools/build.sh linux" >&2; exit 2; }
+[[ -x build/linux/editor-install/bin/allioengine-editor ]] || { echo "no editor install: tools/build.sh linux" >&2; exit 2; }
 
 if [[ $PLAYERS == 1 ]]; then
     step "release player, every ABI, gles3"
@@ -50,7 +50,7 @@ project() {  # name, the ABIs it ships (comma separated; empty: the project's de
 build() {  # name, method, package format
     step "build $1 ($2, $3)"
     tools/build.sh exec android bash -c "dbus-run-session -- env JASPER_PLAYERS_DIR=/src/build/players \
-        build/linux/editor-install/bin/jasperengine-editor build --project $OUT/$1 --platform android --method $2 \
+        build/linux/editor-install/bin/allioengine-editor build --project $OUT/$1 --platform android --method $2 \
         --android-format $3 --out $OUT/$1-out" > "$OUT/$1.log" 2>&1
     local code=$?
     tail -n 6 "$OUT/$1.log"
@@ -117,7 +117,7 @@ if [[ $COMPILED == 1 ]]; then
     # export makes it executable)
     step "compiled arm64-v8a: export, then Gradle assembleRelease"
     project compiled-arm64 arm64-v8a
-    tools/build.sh exec android bash -c "dbus-run-session -- build/linux/editor-install/bin/jasperengine-editor export         --project $OUT/compiled-arm64 --out $OUT/compiled-arm64-export --backend opengles" > "$OUT/compiled-arm64.log" 2>&1
+    tools/build.sh exec android bash -c "dbus-run-session -- build/linux/editor-install/bin/allioengine-editor export         --project $OUT/compiled-arm64 --out $OUT/compiled-arm64-export --backend opengles" > "$OUT/compiled-arm64.log" 2>&1
     code=$?
     tail -n 4 "$OUT/compiled-arm64.log"
     if [[ $code == 0 ]]; then

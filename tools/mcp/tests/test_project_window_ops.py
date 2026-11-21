@@ -7,7 +7,7 @@ files and the editor's state back.
 - a cut pasted into itself is refused and stays on the clipboard
 - Ctrl+D duplicates once per press and selects the copies; one undo removes them
 - a press arriving with the pointer move drags only that file (Doriax 9050bbaca)
-- Create > Lua Script from a folder's menu asks the name, writes the script there, undoes
+- Create > C# Script from a folder's menu asks the name, writes the script there, undoes
 - Create > HTML Document is one undo step
 - the assets directory can't be cut
 - F11 toggles Maximize On Play; an unnamed GameObject reads "GameObject <id>"
@@ -227,28 +227,27 @@ async def test_press_with_the_pointer_move_drags_only_that_file(ed: Editor):
     ed.check_eq(moved, [target], "only the pressed file was dragged")
 
 
-async def test_create_lua_script_names_first_and_undoes(ed: Editor):
+async def test_create_csharp_script_names_first_and_undoes(ed: Editor):
     ui = ui_input.for_editor(ed)
-    # the Lua directory is scripts: a Lua script goes there (elsewhere the item is disabled)
     await show_folder(ed, "scripts")
     (ed.project / "scripts/enemies").mkdir(parents=True, exist_ok=True)
     await ed.call("sync_files", paths=["scripts/enemies"])
     st = await wait_for(ed, lambda s: entry(s, "enemies"), "scripts/enemies listed")
-    await context_menu(ed, "enemies", "Lua Script", submenu="Create")
+    await context_menu(ed, "enemies", "C# Script", submenu="Create")
     await ui.frames(4)
     await ui.key("ctrl+a")
     await ui.type("Goblin")
     await ui.key("Return")
-    script = ed.project / "scripts/enemies/Goblin.lua"
+    script = ed.project / "scripts/enemies/Goblin.cs"
     for _ in range(40):
         if script.exists():
             break
         await ui.frames(2)
     ed.check(script.exists(), "the script is written into the right-clicked folder")
     text = script.read_text()
-    ed.check_in("---@class Goblin : ScriptInstance", text)
-    ed.check_in("return Goblin", text)
-    await shot(ed, "create-lua-script")
+    ed.check_in("class @Goblin : Behaviour", text)
+    ed.check_in("override void Update(float deltaTime)", text)
+    await shot(ed, "create-csharp-script")
     await ed.call("undo", scope="project")
     ed.check(not script.exists(), "undo removes the created script")
 

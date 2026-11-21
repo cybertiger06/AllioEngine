@@ -51,7 +51,7 @@ body() {
 
 These builds are not code-signed or notarized.
 
-- **macOS:** right-click the app and choose Open the first time, or run `xattr -dr com.apple.quarantine JasperEngine.app`.
+- **macOS:** right-click the app and choose Open the first time, or run `xattr -dr com.apple.quarantine AllioEngine.app`.
 - **Windows:** when SmartScreen stops it, choose More info, then Run anyway.
 - **Linux:** `chmod +x` the AppImage, then run it.
 
@@ -80,7 +80,7 @@ publish() {
     local expected missing=0
     for expected in windows-x64.zip linux-x86_64.AppImage linux-x86_64.AppImage.zsync linux-x86_64.zip \
                     macos-universal.zip macos-universal.dmg; do
-        [[ -f "$dir/JasperEngine-$version-$expected" ]] || { echo "release: no JasperEngine-$version-$expected" >&2; missing=1; }
+        [[ -f "$dir/AllioEngine-$version-$expected" ]] || { echo "release: no AllioEngine-$version-$expected" >&2; missing=1; }
     done
     compgen -G "$dir/jasperengine-player-*-$version.zip" > /dev/null || { echo "release: no player archive of $version" >&2; missing=1; }
     [[ $missing -eq 0 ]] || exit 1

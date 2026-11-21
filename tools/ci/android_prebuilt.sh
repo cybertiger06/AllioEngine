@@ -17,7 +17,7 @@ cd "$ROOT"
 FLAVOUR="${1:-development}"
 [[ "$FLAVOUR" == release || "$FLAVOUR" == development ]] || { echo "flavour is release or development" >&2; exit 2; }
 [[ -d "build/players/android-universal-gles3-$FLAVOUR" ]] || { echo "no android-universal-gles3-$FLAVOUR runtime in build/players" >&2; exit 2; }
-[[ -x build/linux/editor-install/bin/jasperengine-editor ]] || { echo "no editor install: tools/build.sh linux" >&2; exit 2; }
+[[ -x build/linux/editor-install/bin/allioengine-editor ]] || { echo "no editor install: tools/build.sh linux" >&2; exit 2; }
 
 OUT=build/android-prebuilt
 rm -rf "$OUT"
@@ -34,7 +34,7 @@ YAML
 DEV_FLAG=""
 [[ "$FLAVOUR" == development ]] && DEV_FLAG="--development"
 tools/build.sh exec android bash -c "dbus-run-session -- env JASPER_PLAYERS_DIR=/src/build/players \
-    build/linux/editor-install/bin/jasperengine-editor build --project $OUT/project --platform android --android-format apk $DEV_FLAG --out $OUT/game \
+    build/linux/editor-install/bin/allioengine-editor build --project $OUT/project --platform android --android-format apk $DEV_FLAG --out $OUT/game \
     | tee $OUT/build.log"
 grep -q "^method: prebuilt" "$OUT/build.log" || { echo "FAIL: not built with the prebuilt player" >&2; exit 1; }
 APK="$(sed -n 's/^executable: //p' "$OUT/build.log" | head -1)"

@@ -144,7 +144,7 @@ return Terminal
 A menu in a few calls (every call's result carries `external_changes` when files changed):
 
 ```text
-create_ui_document {"html": "assets/ui/main_menu.html", "template": "main_menu"}
+create_ui_document {"html": "assets/ui/main_menu.html", "template": "main_menu", "script": true}
     -> a GameObject with a UI Document + assets/ui/main_menu.html, .css, main_menu_assets/, scripts/MainMenuUI.lua (attached)
 (edit the .html / .css / .lua with your own file tools)
 inspect_ui   {"selector": ".menu-button", "styles": ["font-size", "width"]}

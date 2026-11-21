@@ -69,7 +69,7 @@ class ReleaseTest(unittest.TestCase):
         self.assets = self.tmp / "assets"
         self.assets.mkdir()
         for name in EDITORS:
-            (self.assets / f"JasperEngine-{VERSION}-{name}").write_text(name)
+            (self.assets / f"AllioEngine-{VERSION}-{name}").write_text(name)
         (self.assets / f"jasperengine-player-linux-x64-glcore-release-{VERSION}.zip").write_text("player")
 
     def tearDown(self):
@@ -109,7 +109,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(self.releases()[VERSION], ("true", COMMIT))
 
     def test_a_missing_editor_package_publishes_nothing(self):
-        (self.assets / f"JasperEngine-{VERSION}-macos-universal.dmg").unlink()
+        (self.assets / f"AllioEngine-{VERSION}-macos-universal.dmg").unlink()
         p = self.run_script("publish", "nightly", VERSION, COMMIT, str(self.assets))
         self.assertEqual(p.returncode, 1, p.stdout + p.stderr)
         self.assertIn("macos-universal.dmg", p.stderr)
@@ -134,7 +134,7 @@ class ReleaseTest(unittest.TestCase):
 
     def test_stable_is_latest(self):
         for name in EDITORS:
-            (self.assets / f"JasperEngine-{VERSION}-{name}").rename(self.assets / f"JasperEngine-v1.2.3-{name}")
+            (self.assets / f"AllioEngine-{VERSION}-{name}").rename(self.assets / f"AllioEngine-v1.2.3-{name}")
         (self.assets / f"jasperengine-player-linux-x64-glcore-release-{VERSION}.zip").rename(
             self.assets / "jasperengine-player-linux-x64-glcore-release-v1.2.3.zip")
         p = self.run_script("publish", "stable", "v1.2.3", COMMIT, str(self.assets))

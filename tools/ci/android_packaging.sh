@@ -31,7 +31,7 @@ cd "$ROOT"
 FLAVOUR="${1:-development}"
 [[ "$FLAVOUR" == release || "$FLAVOUR" == development ]] || { echo "flavour is release or development" >&2; exit 2; }
 [[ -d "build/players/android-universal-gles3-$FLAVOUR" ]] || { echo "no android-universal-gles3-$FLAVOUR runtime in build/players" >&2; exit 2; }
-[[ -x build/linux/editor-install/bin/jasperengine-editor ]] || { echo "no editor install: tools/build.sh linux" >&2; exit 2; }
+[[ -x build/linux/editor-install/bin/allioengine-editor ]] || { echo "no editor install: tools/build.sh linux" >&2; exit 2; }
 
 OUT=build/android-packaging
 rm -rf "$OUT"
@@ -74,7 +74,7 @@ tools/build.sh exec android bash -euo pipefail -c "
 
     # one editor build: project, format, output, log (the environment the caller set)
     build() {
-        dbus-run-session -- env JASPER_PLAYERS_DIR=/src/build/players build/linux/editor-install/bin/jasperengine-editor build \
+        dbus-run-session -- env JASPER_PLAYERS_DIR=/src/build/players build/linux/editor-install/bin/allioengine-editor build \
             --project \$OUT/\$1 --platform android --method prebuilt --android-format \$2 \$DEV_FLAG --out \$OUT/\$3 > \$OUT/logs/\$3.log 2>&1
     }
     must_build() { build \"\$@\" || { tail -n 30 \$OUT/logs/\$3.log; fail \"the \$2 build of \$1\"; }; grep -q '^method: prebuilt' \$OUT/logs/\$3.log || fail \"\$3 was not prebuilt\"; }
@@ -87,7 +87,7 @@ tools/build.sh exec android bash -euo pipefail -c "
     }
 
     # ---- 1. bundletool: the real download, then the cache
-    JAR=\$HOME/.cache/jasperengine/tools/bundletool-all-1.17.2.jar
+    JAR=\$HOME/.cache/allioengine/tools/bundletool-all-1.17.2.jar
     rm -f \"\$JAR\" \"\$JAR.part\"
     must_build debug aab debug-aab
     [[ -f \"\$JAR\" ]] || fail 'the bundle build did not keep bundletool in the cache'
@@ -152,7 +152,7 @@ tools/build.sh exec android bash -euo pipefail -c "
   \"apk\": {\"platform\": \"android\", \"arch\": \"universal\", \"flavour\": \"$FLAVOUR\", \"buildDir\": \"../debug-apk\"},
   \"aab\": {\"platform\": \"android\", \"arch\": \"universal\", \"flavour\": \"$FLAVOUR\", \"buildDir\": \"../debug-aab\"}}}
 JSON
-    dbus-run-session -- build/linux/editor-install/bin/jasperengine-editor publish prepare --project \$OUT/debug --release s47 > \$OUT/logs/publish-prepare.log 2>&1 \
+    dbus-run-session -- build/linux/editor-install/bin/allioengine-editor publish prepare --project \$OUT/debug --release s47 > \$OUT/logs/publish-prepare.log 2>&1 \
         || { tail -n 30 \$OUT/logs/publish-prepare.log; fail 'publish prepare refused the APK or the bundle'; }
     ok 'publish prepare validates the APK and the bundle'
 "
@@ -174,7 +174,7 @@ done
 if [[ "${ANDROID_PACKAGING_SOURCE:-0}" == 1 ]]; then
     tools/build.sh exec android bash -euo pipefail -c "
         BT=\$(ls -d \$ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
-        dbus-run-session -- build/linux/editor-install/bin/jasperengine-editor export --project $OUT/debug --out $OUT/source --backend opengles \
+        dbus-run-session -- build/linux/editor-install/bin/allioengine-editor export --project $OUT/debug --out $OUT/source --backend opengles \
             > $OUT/logs/source-export.log 2>&1 || { tail -n 30 $OUT/logs/source-export.log; echo 'FAIL: the source export'; exit 1; }
         cd $OUT/source/workspaces/androidstudio
         JASPERENGINE_ANDROID_ABIS=x86_64 CMAKE_CXX_COMPILER_LAUNCHER=ccache ./gradlew --no-daemon assembleDebug bundleDebug \

@@ -479,7 +479,7 @@ ImportedResource GoogleFontsImporter::run(const std::string& url, const ImportLo
         if (response.status != 400){
             result.error = error;
             importer.report(codes::DownloadFailed, at, url, "download of the Google Fonts stylesheet '" + url + "' failed: " + error,
-                            "check the network, then import again (Inspector: Import, or jasperengine-editor import-ui)");
+                            "check the network, then import again (Inspector: Import, or allioengine-editor import-ui)");
             return result;
         }
 

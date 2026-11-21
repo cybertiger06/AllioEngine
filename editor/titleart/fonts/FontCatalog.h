@@ -6,7 +6,7 @@
 //   one; .woff / .woff2 files inside the assets with a Convert badge), Library (fonts a provider
 //   registers: S84's bundled OFL fonts), Google Fonts (Google's metadata, fetched once per
 //   session and cached 7 days under the user cache; hovering a family downloads its Regular into
-//   <user cache>/jasperengine/google-fonts/ for previews, at most 2 downloads at once; offline the
+//   <user cache>/allioengine/google-fonts/ for previews, at most 2 downloads at once; offline the
 //   section says "Google Fonts needs a connection" and the rest works) and System
 //   (SystemFontList). Search over family, style and file names; filters Covers My Text (with the
 //   layer's Fallback Fonts) and Category (from OS/2 sFamilyClass and PANOSE, and Google's
@@ -146,7 +146,7 @@ namespace jasperengine::editor::titlefonts {
             std::function<std::vector<SystemFontFace>()> systemFonts;
             // a job on the net channel: one GET (empty function: HttpClient, curl)
             std::function<HttpResult(const std::string& url)> http;
-            std::filesystem::path cacheDir;             // "<user cache>/jasperengine"
+            std::filesystem::path cacheDir;             // "<user cache>/allioengine"
             std::function<int64_t()> now;               // seconds (the metadata cache's age)
         };
         // the editor's: the project's resolver and assets folder, SystemFontList, curl, App's cache

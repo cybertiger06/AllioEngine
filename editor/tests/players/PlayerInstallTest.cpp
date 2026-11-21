@@ -176,8 +176,8 @@ TEST(PlayerInstall, StableAndNightlyEditorsDownloadFromTheirOwnRelease) {
         EXPECT_FALSE(PlayerRuntimes::isReleaseVersion(development)) << development;
 
     EXPECT_EQ(PlayerRuntimes::releaseUrl(ID, "nightly-20261112"),
-              "https://github.com/Arakuma-Studio/JasperEngine/releases/download/nightly-20261112/"
+              "https://github.com/cybertiger06/AllioEngine/releases/download/nightly-20261112/"
               "jasperengine-player-linux-x64-glcore-release-nightly-20261112.zip");
     EXPECT_EQ(PlayerRuntimes::releaseUrl(ID, "v1.2.3"),
-              "https://github.com/Arakuma-Studio/JasperEngine/releases/download/v1.2.3/jasperengine-player-linux-x64-glcore-release-v1.2.3.zip");
+              "https://github.com/cybertiger06/AllioEngine/releases/download/v1.2.3/jasperengine-player-linux-x64-glcore-release-v1.2.3.zip");
 }

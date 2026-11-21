@@ -1447,7 +1447,7 @@ void ProjectSettingsWindow::drawRootsConfirmation() {
 std::string ProjectSettingsWindow::inheritedApplicationName() const {
     if (m_applicationNameBuffer[0]) return m_applicationNameBuffer;
     if (m_projectNameBuffer[0]) return m_projectNameBuffer;
-    return "JasperEngine";
+    return "AllioEngine";
 }
 
 std::string ProjectSettingsWindow::inheritedApplicationIdentifier() const {
@@ -1477,7 +1477,7 @@ void ProjectSettingsWindow::drawPlayerSettings() {
             if (settingsui::beginRow("player.application_name")) {
                 projectBeginSettingsRow("Product Name");
                 ImGui::SetNextItemWidth(-helpMarkerWidth());
-                std::string nameHint = m_projectNameBuffer[0] ? m_projectNameBuffer : "JasperEngine";
+                std::string nameHint = m_projectNameBuffer[0] ? m_projectNameBuffer : "AllioEngine";
                 ImGui::InputTextWithHint("##ApplicationName", nameHint.c_str(), m_applicationNameBuffer, sizeof(m_applicationNameBuffer));
                 endSettingsRow("Name every platform shows to the player. Empty means the project name.");
             }
@@ -1600,7 +1600,7 @@ void ProjectSettingsWindow::drawPlayerSettings() {
                 if (projectBeginSettingsRow("Window Title", strcmp(m_windowTitleBuffer, Project::defaultWindowTitle) != 0)) {
                     snprintf(m_windowTitleBuffer, sizeof(m_windowTitleBuffer), "%s", Project::defaultWindowTitle);
                 }
-                std::string titleHint = m_project->getName().empty() ? "JasperEngine" : m_project->getName();
+                std::string titleHint = m_project->getName().empty() ? "AllioEngine" : m_project->getName();
                 ImGui::SetNextItemWidth(-1);
                 ImGui::InputTextWithHint("##WindowTitle", titleHint.c_str(), m_windowTitleBuffer, sizeof(m_windowTitleBuffer));
             }
@@ -3884,7 +3884,7 @@ void ProjectSettingsWindow::drawScriptingSettings() {
     projectDrawSettingsPanel("##ScriptingSettingsPanel", [this]() {
         if (settingsui::beginRow("scripting.lua_dir")) {
             drawDirectorySetting(
-                m_project, "Lua Directory", nullptr, "##LuaPath", "Browse##lua",
+                m_project, "Legacy Lua Directory", nullptr, "##LuaPath", "Browse##lua",
                 m_luaDir, fs::path(Project::defaultLuaDir), true
             );
         }

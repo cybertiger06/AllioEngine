@@ -156,8 +156,8 @@ entities:
         pivotPreset: bottom_left
       script:
         scripts:
-          - type: lua
-            path: scripts/PlayerMove.lua
+          - type: csharp
+            path: scripts/PlayerMove.cs
             pathGuid: 00a5d6c07f7350304170d312c0e47351
             className: PlayerMove
             enabled: true

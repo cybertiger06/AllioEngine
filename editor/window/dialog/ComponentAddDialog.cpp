@@ -446,7 +446,7 @@ void ComponentAddDialog::show() {
             label = Catalog::getComponentDisplayName(row.type);
         } else if (row.kind == Row::Script) {
             icon = ICON_FA_FILE_CODE;
-            label = m_scripts[row.index].name + (m_scripts[row.index].type == ScriptType::LUA ? " (Lua script)" : " (C++ script)");
+            label = m_scripts[row.index].name + (m_scripts[row.index].type == ScriptType::CSHARP ? " (C# script)" : " (C++ script)");
         } else {
             icon = ICON_FA_FILE_CIRCLE_PLUS;
             label = "New Script";

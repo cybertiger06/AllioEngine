@@ -37,54 +37,90 @@ THUMB_W, THUMB_H = 480, 270
 EXCLUDED = {".jasperengine", "build", "Recordings", ".trash", ".git", ".clangd", ".vscode", ".luarc.json", "AGENTS.md",
             "CLAUDE.md", "CMakeLists.txt", ".gitignore", ".gitattributes"}
 
-ROTATOR = """---@class Rotator : ScriptInstance
--- Turns its GameObject around the vertical axis.
-local Rotator = { properties = {
-    { name = "degreesPerSecond", type = "float", default = 45.0 },
-} }
+ROTATOR = """using AllioEngine;
 
-function Rotator:init()
-    self.go = GameObject(self.scene, self.entity)
-    self.angle = 0
-    RegisterEngineEvent(self, "onUpdate")
-end
+public sealed class Rotator : Behaviour
+{
+    public float degreesPerSecond = 45f;
 
-function Rotator:onUpdate()
-    self.angle = (self.angle + self.degreesPerSecond * Engine.deltatime) % 360
-    self.go:setRotation(0, self.angle, 0)
-end
-
-return Rotator
+    public override void Update(float deltaTime)
+    {
+        Rotate(0f, degreesPerSecond * deltaTime, 0f);
+    }
+}
 """
 
-PLAYER_MOVE = """---@class PlayerMove : ScriptInstance
--- Moves its sprite with the arrow keys or WASD.
-local PlayerMove = { properties = {
-    { name = "speed", type = "float", default = 300.0 },
-} }
+PLAYER_MOVE = """using AllioEngine;
+using System.Numerics;
 
-function PlayerMove:init()
-    self.go = GameObject(self.scene, self.entity)
-    RegisterEngineEvent(self, "onUpdate")
-end
+public sealed class PlayerMove : Behaviour
+{
+    public float speed = 300f;
 
-local function held(a, b)
-    return Input.isKeyPressed(a) or Input.isKeyPressed(b)
-end
+    public override void Update(float deltaTime)
+    {
+        float x = 0f;
+        float y = 0f;
+        if (IsKeyDown(Key.Left) || IsKeyDown(Key.A)) x -= 1f;
+        if (IsKeyDown(Key.Right) || IsKeyDown(Key.D)) x += 1f;
+        if (IsKeyDown(Key.Up) || IsKeyDown(Key.W)) y += 1f;
+        if (IsKeyDown(Key.Down) || IsKeyDown(Key.S)) y -= 1f;
+        if (x != 0f || y != 0f)
+            Position += new Vector3(x, y, 0f) * (speed * deltaTime);
+    }
+}
+"""
 
-function PlayerMove:onUpdate()
-    local x, y = 0, 0
-    if held(Input.KEY_LEFT, Input.KEY_A) then x = x - 1 end
-    if held(Input.KEY_RIGHT, Input.KEY_D) then x = x + 1 end
-    if held(Input.KEY_UP, Input.KEY_W) then y = y + 1 end
-    if held(Input.KEY_DOWN, Input.KEY_S) then y = y - 1 end
-    if x ~= 0 or y ~= 0 then
-        local step = self.speed * Engine.deltatime
-        self.go.position = self.go.position + Vector3(x * step, y * step, 0)
-    end
-end
+MAIN_MENU = """using AllioEngine;
 
-return PlayerMove
+public sealed class MainMenuUI : Behaviour
+{
+    private readonly string[] buttons = { "play", "settings", "credits", "quit" };
+    private int focused = -1;
+    private bool settingsOpen;
+
+    public override void OnClick(string elementId)
+    {
+        if (elementId == "settings-back")
+        {
+            ShowSettings(false);
+            return;
+        }
+
+        int index = System.Array.IndexOf(buttons, elementId);
+        if (index < 0) return;
+        focused = index;
+        Log("main_menu: " + elementId);
+        if (elementId == "settings") ShowSettings(true);
+    }
+
+    public override void Update(float deltaTime)
+    {
+        if (settingsOpen)
+        {
+            if (IsKeyPressed(Key.Escape)) ShowSettings(false);
+            return;
+        }
+
+        int step = IsKeyPressed(Key.Down) ? 1 : IsKeyPressed(Key.Up) ? -1 : 0;
+        if (step != 0)
+        {
+            focused = focused < 0 ? 0 : (focused + step + buttons.Length) % buttons.Length;
+            FocusElement(buttons[focused]);
+        }
+        else if (focused < 0 && IsKeyPressed(Key.Enter))
+        {
+            OnClick("play");
+        }
+    }
+
+    private void ShowSettings(bool open)
+    {
+        settingsOpen = open;
+        SetElementClass("settings-panel", "open", open);
+        FocusElement(open ? "settings-back" : "settings");
+    }
+}
 """
 
 INFO = {
@@ -98,7 +134,7 @@ INFO = {
     "2d-pixel-art": {"name": "2D Pixel Art", "description": "Pixel Art Mode: a 320x180 base at whole-number scales, a Pixel Perfect "
                      "Camera, point-filtered lossless art and a sprite moved by the arrow keys or WASD.",
                      "category": "Core", "order": 3, "accentColor": "#3D8FB0", "pixelArt": True},
-    "ui": {"name": "UI", "description": "A main menu in HTML and CSS with Play and Quit buttons wired in Lua, on a 1920x1080 canvas.",
+    "ui": {"name": "UI", "description": "A main menu in HTML and CSS with Play and Quit buttons wired in C#, on a 1920x1080 canvas.",
            "category": "Core", "order": 4, "accentColor": "#9B4F96"},
 }
 
@@ -139,7 +175,7 @@ async def build_3d(ed: Editor) -> None:
     await ed.call("create_material", path="materials/Ground", scene=sid, entity=ground,
                   values={"baseColorFactor": [0.42, 0.45, 0.4, 1.0], "roughnessFactor": 0.9})
     cube = (await ed.call("create_entity", scene=sid, type="cube", name="Cube", position=[0, 0.5, 0]))["entity_id"]
-    await ed.call("create_script", kind="lua", name="Rotator", directory="scripts", content=ROTATOR, scene=sid, entity=cube)
+    await ed.call("create_script", kind="csharp", name="Rotator", directory="scripts", content=ROTATOR, scene=sid, entity=cube)
 
 
 async def build_2d(ed: Editor) -> None:
@@ -151,7 +187,7 @@ async def build_2d(ed: Editor) -> None:
     player = (await ed.call("create_entity", scene=sid, type="sprite", name="Player", position=[608, 328, 0],
                             values={"sprite": {"width": 64, "height": 64},
                                     "mesh": {"submeshes[0].material.baseColorTexture": art["path"]}}))["entity_id"]
-    await ed.call("create_script", kind="lua", name="PlayerMove", directory="scripts", content=PLAYER_MOVE, scene=sid, entity=player)
+    await ed.call("create_script", kind="csharp", name="PlayerMove", directory="scripts", content=PLAYER_MOVE, scene=sid, entity=player)
 
 
 async def build_2d_pixel_art(ed: Editor) -> None:
@@ -170,7 +206,7 @@ async def build_2d_pixel_art(ed: Editor) -> None:
     player = (await ed.call("create_entity", scene=sid, type="sprite", name="Player", position=[152, 82, 0],
                             values={"sprite": {"width": 16, "height": 16},
                                     "mesh": {"submeshes[0].material.baseColorTexture": art["path"]}}))["entity_id"]
-    await ed.call("create_script", kind="lua", name="PlayerMove", directory="scripts", content=PLAYER_MOVE, scene=sid, entity=player)
+    await ed.call("create_script", kind="csharp", name="PlayerMove", directory="scripts", content=PLAYER_MOVE, scene=sid, entity=player)
     # the art's import settings are written by the first cook: wait for them before the copy
     for _ in range(100):
         meta = (ed.project / "sprites" / "player.png.meta")
@@ -185,7 +221,9 @@ async def build_2d_pixel_art(ed: Editor) -> None:
 async def build_ui(ed: Editor) -> None:
     await ed.call("set_project_settings", values={"graphics.canvas_width": 1920, "graphics.canvas_height": 1080})
     sid = await main_scene(ed, "UI")
-    await ed.call("create_ui_document", scene=sid, html="ui/main_menu.html", name="Main Menu", template="main_menu", script=True)
+    result = await ed.call("create_ui_document", scene=sid, html="ui/main_menu.html", name="Main Menu", template="main_menu", script=False)
+    await ed.call("create_script", kind="csharp", name="MainMenuUI", directory=".", content=MAIN_MENU,
+                  scene=sid, entity=result["entity"]["id"])
 
 
 BUILDERS = {"empty": build_empty, "3d": build_3d, "2d": build_2d, "2d-pixel-art": build_2d_pixel_art, "ui": build_ui}

@@ -90,6 +90,9 @@ void reload::reloadScripts(Context& ctx, const std::vector<fs::path>& filesIn, b
         if (!waiting.empty()) {
             ctx.service.deferScripts(waiting);
             ctx.result.notes.push_back("A scene is playing: script properties are re-parsed after Play stops.");
+            if (std::any_of(waiting.begin(), waiting.end(), [](const fs::path& file) {
+                    return Util::isCSharpFile(file.string());
+                })) ctx.result.notes.push_back("C# source changes will be compiled on the next Play.");
         }
     } else {
         for (SceneProject* sceneProject : project->getScenesAndPrefabStages()) {

@@ -1,5 +1,5 @@
 {
-  "description": "engine/project, Debug web build with pthreads (WEB_THREADS=1 tools/build.sh web): needs cross-origin isolation for SharedArrayBuffer, in the web image's headless shell (SwiftShader WebGL2) served with COOP/COEP. The canvas centre falls on the white J of the jasperengine.png logo.",
+  "description": "engine/project, Debug web build with pthreads (WEB_THREADS=1 tools/build.sh web): needs cross-origin isolation for SharedArrayBuffer, in the web image's headless shell (SwiftShader WebGL2) served with COOP/COEP. The canvas centre falls on the white lion in the Allio Studio logo.",
   "rgb": [
     255,
     254,

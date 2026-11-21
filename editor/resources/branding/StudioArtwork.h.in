@@ -1,0 +1,6 @@
+#pragma once
+
+namespace jasperengine::editor {
+    inline constexpr unsigned char studioIcon[] = { @allio_icon_bytes@ };
+    inline unsigned char studioWordmark[] = { @allio_wordmark_bytes@ };
+}

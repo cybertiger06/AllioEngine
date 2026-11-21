@@ -222,7 +222,7 @@ std::vector<fs::path> PlayerRuntimes::searchDirs(const fs::path& override) {
 
 fs::path PlayerRuntimes::installRoot(const fs::path& override) {
     if (!override.empty()) return override;
-    return App::getUserCacheBaseDir() / "jasperengine" / "players" / editorVersion();
+    return App::getUserCacheBaseDir() / "allioengine" / "players" / editorVersion();
 }
 
 std::vector<PlayerInfo> PlayerRuntimes::list(const fs::path& override) {
@@ -266,7 +266,7 @@ std::optional<PlayerInfo> PlayerRuntimes::find(const std::string& id, const fs::
     }
     error = "no player runtime " + id + " for editor " + editorVersion();
     for (const std::string& why : rejected) error += "; " + why;
-    error += isReleaseEditor() ? " (Build Settings > Download, or `jasperengine-editor players download " + id + "`)"
+    error += isReleaseEditor() ? " (Build Settings > Download, or `allioengine-editor players download " + id + "`)"
                                : " (a development editor uses local players: tools/build.sh players, then --players-dir or JASPER_PLAYERS_DIR)";
     return std::nullopt;
 }

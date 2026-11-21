@@ -443,7 +443,7 @@ bool RemoteImporter::fetch(const std::string& url, const ImportLocation& at, Htt
         error = response.error.empty() ? "HTTP " + std::to_string(response.status) : response.error;
         if (!quiet)
             report(compat::codes::DownloadFailed, at, url, "download of '" + url + "' failed: " + error,
-                   "check the URL and the network, then import again (Inspector: Import, or jasperengine-editor import-ui)");
+                   "check the URL and the network, then import again (Inspector: Import, or allioengine-editor import-ui)");
         return false;
     }
     if (!HttpClient::readBody(response, body)){

@@ -1363,8 +1363,8 @@ void editor::App::executeMenuCommand(const PlatformMenuCommand& command){
         case AppMenuCommand::AssetsCreateFolder:
             projectWindow->createAsset(AssetCreateKind::Folder, projectWindow->createTargetDirectory());
             break;
-        case AppMenuCommand::AssetsCreateLuaScript:
-            projectWindow->createAsset(AssetCreateKind::LuaScript, projectWindow->createTargetDirectory());
+        case AppMenuCommand::AssetsCreateCSharpScript:
+            projectWindow->createAsset(AssetCreateKind::CSharpScript, projectWindow->createTargetDirectory());
             break;
         case AppMenuCommand::AssetsCreateCppScript:
             projectWindow->createAsset(AssetCreateKind::CppScript, projectWindow->createTargetDirectory());
@@ -3665,7 +3665,7 @@ void editor::App::loadStartupProject() {
                 benchmarkExit = true;
                 return;
             }
-            if (!project.createTempProject("MyJasperEngineProject")) {
+            if (!project.createTempProject("MyAllioEngineProject")) {
                 std::fprintf(stderr, "[mcp] the temporary project could not be opened either: no project is open\n");
             }
         }
@@ -3679,7 +3679,7 @@ void editor::App::loadStartupProject() {
     const hub::LaunchOptions& launch = hub::launchOptions();
     if (!launch.project.empty()) {
         if (!project.loadProject(launch.project)) {
-            project.createTempProject("MyJasperEngineProject");
+            project.createTempProject("MyAllioEngineProject");
         }
         projectLoading = false;
         requestRedraw();
@@ -3700,7 +3700,7 @@ void editor::App::loadStartupProject() {
     }
     if (showHub) {
         // the editor's own temporary project stays behind the hub: never shown, never saved
-        project.createTempProject("MyJasperEngineProject");
+        project.createTempProject("MyAllioEngineProject");
         hubOverTemp = true;
         projectHub.open(ProjectHubWindow::Page::Projects);
     }
@@ -3800,7 +3800,7 @@ void editor::App::hubOpenProject(const std::filesystem::path& dir, bool withoutL
             } else {
                 project.setSkipWorkspaceTabs(false);
                 // the hub stays, over the editor's temporary project again
-                project.createTempProject("MyJasperEngineProject");
+                project.createTempProject("MyAllioEngineProject");
                 hubOverTemp = true;
                 hubMessage = "Could not open " + dir.string() + ": see the Console.";
             }
@@ -3888,7 +3888,7 @@ void editor::App::updateHubCreation() {
                 hubCreationError = "the new project did not load";
                 std::error_code ec;
                 std::filesystem::remove_all(done.dir, ec);
-                project.createTempProject("MyJasperEngineProject");
+                project.createTempProject("MyAllioEngineProject");
                 hubOverTemp = true;
                 hubMessage = "Could not open the new project: see the Console.";
                 return;
@@ -6154,7 +6154,7 @@ std::filesystem::path editor::App::getUserShaderCacheDir(){
     //      (BLIT 'Gli' 20) and the screen transition program.
     // v65: S50's tilemap tiles (after S48's v64): MESH 'Tcl' 54 (TILE_CLAMP_FRAME: includes/base_color_fs.glsl, the UV
     //      clamp inside the instance's frame; the vertex stages' v_tileFrame).
-    return App::getUserCacheBaseDir() / "jasperengine" / "shaders" / "v65";
+    return App::getUserCacheBaseDir() / "allioengine" / "shaders" / "v65";
 }
 
 void editor::App::pushTabNotificationStyle(){

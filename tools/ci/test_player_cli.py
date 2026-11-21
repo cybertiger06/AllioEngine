@@ -6,7 +6,7 @@ image of docker/runtime.Dockerfile:
     tools/build.sh players                    # Linux runtimes; PLAYER_PLATFORM=web for the web ones
     tools/build.sh exec runtime python3 tools/ci/test_player_cli.py [--only linux,audio,components,variants,web,model-capacity,fallback]
 
-- linux (AC1): `jasperengine-editor build --platform linux` of tools/fixtures/unified-lighting
+- linux (AC1): `allioengine-editor build --platform linux` of tools/fixtures/unified-lighting
   with each Linux backend whose runtime is installed (--backends), timed (R28: <= 20 s with a warm
   cache, reported); the player under Xvfb with --headless --after-ready --quit-after 30
   --fixed-fps 60 --screenshot --fail-on-error exits 0, and its frame matches
@@ -624,7 +624,7 @@ def check_model_capacity(args, players: Path, out: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--editor", type=Path, default=REPO / "build/linux/editor-install/bin/jasperengine-editor")
+    parser.add_argument("--editor", type=Path, default=REPO / "build/linux/editor-install/bin/allioengine-editor")
     parser.add_argument("--players", type=Path, default=REPO / "build/players")
     parser.add_argument("--out", type=Path, default=REPO / "build/player-cli")
     parser.add_argument("--backends", default="glcore,gles3,vulkan")

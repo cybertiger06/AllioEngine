@@ -693,6 +693,7 @@ namespace {
     constexpr EnumItem kScriptTypeItems[] = {
         {v(ScriptType::CPP), "cpp", "C++", "ScriptType::CPP", nullptr, kScriptCppAliases},
         {v(ScriptType::LUA), "lua", "Lua", "ScriptType::LUA", nullptr, kScriptLuaAliases},
+        {v(ScriptType::CSHARP), "csharp", "C#", "ScriptType::CSHARP"},
     };
 
     constexpr EnumItem kButtonTransitionItems[] = {

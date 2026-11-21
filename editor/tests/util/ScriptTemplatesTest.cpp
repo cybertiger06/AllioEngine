@@ -5,6 +5,7 @@
 // dialog and create_script write the same files
 
 #include "util/ScriptTemplates.h"
+#include "util/ScriptParser.h"
 #include "window/dialog/ScriptCreateDialog.h"
 
 #include "TempDir.h"
@@ -22,6 +23,26 @@ TEST(ScriptTemplates, LuaTemplateDeclaresTheModuleClass) {
     EXPECT_NE(text.find("return Goblin\n"), std::string::npos);
 }
 
+TEST(ScriptTemplates, CSharpFieldsBelongToTheAttachedClass) {
+    const auto fields = ScriptParser::csharpFields(R"(
+        class Other { public bool hidden; }
+        class Goblin : Behaviour {
+            public float speed = 3.5f;
+            public int count = -2;
+            public string message = "a } and ;";
+            public bool running;
+            public float dynamicValue = GetSpeed();
+            private int lives = 6;
+            public class Child { public float unrelated; }
+        })", "Goblin");
+    ASSERT_TRUE(fields.has_value());
+    ASSERT_EQ(fields->size(), 4u);
+    EXPECT_FLOAT_EQ(std::get<float>((*fields)[0].value), 3.5f);
+    EXPECT_EQ(std::get<int>((*fields)[1].value), -2);
+    EXPECT_EQ(std::get<std::string>((*fields)[2].value), "a } and ;");
+    EXPECT_FALSE(std::get<bool>((*fields)[3].value));
+}
+
 TEST(ScriptTemplates, CppScriptPairNamesTheClass) {
     const ScriptTemplates::Files files = ScriptTemplates::cppScript("Goblin", "Goblin.h");
     EXPECT_NE(files.header.find("class Goblin : public jasperengine::ScriptBase"), std::string::npos);
@@ -37,6 +58,9 @@ TEST(ScriptTemplates, LoneFiles) {
 
 TEST(ScriptTemplates, WriteTemplateFilesWritesTheTemplateStrings) {
     jasperengine::test::TempDir dir;
+    ScriptCreateDialog::writeTemplateFiles(nullptr, NULL_ENTITY, {}, dir.path() / "Goblin.cs", "Goblin", ScriptCreateDialog::CreationKind::CSHARP);
+    EXPECT_EQ(dir.read("Goblin.cs"), ScriptTemplates::csharp("Goblin"));
+    EXPECT_NE(dir.read("Goblin.cs").find("override void Update(float deltaTime)"), std::string::npos);
     ScriptCreateDialog::writeTemplateFiles(nullptr, NULL_ENTITY, fs::path(), dir.path() / "Goblin.lua", "Goblin", ScriptCreateDialog::CreationKind::LUA);
     EXPECT_EQ(dir.read("Goblin.lua"), ScriptTemplates::lua("Goblin"));
     ScriptCreateDialog::writeTemplateFiles(nullptr, NULL_ENTITY, dir.path() / "Orc.h", dir.path() / "Orc.cpp", "Orc",

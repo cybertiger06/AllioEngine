@@ -60,7 +60,7 @@ using jasperengine::editor::PlatformMenuModel;
 
 namespace {
 
-constexpr wchar_t WINDOW_CLASS_NAME[] = L"JasperEngineEditorNativeWindow";
+constexpr wchar_t WINDOW_CLASS_NAME[] = L"AllioEngineEditorNativeWindow";
 constexpr UINT WM_JASPERENGINE_WAKE = WM_APP + 1;
 constexpr UINT FIRST_MENU_COMMAND = 0x1000;
 constexpr UINT_PTR LIVE_RESIZE_TIMER_ID = 0xD04A;
@@ -406,7 +406,7 @@ void paintNativeLoading(HWND window, HDC deviceContext) {
         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY,
         DEFAULT_PITCH | FF_SWISS, L"Segoe UI");
     HGDIOBJ previousFont = font ? SelectObject(deviceContext, font) : nullptr;
-    DrawTextW(deviceContext, L"Loading JasperEngine...", -1, &client,
+    DrawTextW(deviceContext, L"Loading AllioEngine...", -1, &client,
               DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     if (font) {
         SelectObject(deviceContext, previousFont);
@@ -593,7 +593,7 @@ void updateFramePeriod() {
 
 bool initializeWindow(int width, int height, bool maximized) {
     WindowWinConfig config;
-    config.title = "JasperEngine";
+    config.title = "AllioEngine";
     config.width = width;
     config.height = height;
     config.maximized = maximized;

@@ -16,13 +16,14 @@ namespace jasperengine{
     enum class ScriptType {
         CPP,
         LUA,
+        CSHARP,
     };
 
     struct JASPERENGINE_API ScriptEntry {
         ScriptType type = ScriptType::CPP;
-        AssetRef path;           // .cpp or .lua (for Lua: script file path)
-        AssetRef headerPath;     // for C++; empty for Lua
-        std::string className;   // C++ class or Lua module name (file base name)
+        AssetRef path;           // .cpp, legacy .lua, or project-relative .cs
+        AssetRef headerPath;     // for C++ only
+        std::string className;   // managed type name, C++ class, or Lua module
         bool enabled = false;
         std::vector<ScriptProperty> properties;
 

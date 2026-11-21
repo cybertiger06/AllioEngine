@@ -78,8 +78,8 @@ entities:
         sortOrder: 0
       script:
         scripts:
-          - type: lua
-            path: MainMenuUI.lua
+          - type: csharp
+            path: MainMenuUI.cs
             pathGuid: 949bef7369205721c42c07e9bcbc44d0
             className: MainMenuUI
             enabled: true

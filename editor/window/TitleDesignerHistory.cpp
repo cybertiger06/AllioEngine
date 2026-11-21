@@ -41,7 +41,7 @@ namespace {
 void TitleDesignerWindow::drawHistory() {
     JE_PROFILE_SCOPE("TD drawHistory");
     if (newerVersion()) {
-        ImGui::TextDisabled("Written by a newer JasperEngine: nothing to show here");
+        ImGui::TextDisabled("Written by a newer AllioEngine: nothing to show here");
         return;
     }
     if (!doc.isOpen() || !project) {

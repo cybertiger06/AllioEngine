@@ -27,6 +27,9 @@ namespace jasperengine::editor {
         // Ambiguous headers do not produce a class name.
         static std::optional<std::string> findScriptClassName(const std::filesystem::path& scriptPath);
         static std::optional<std::string> findScriptClassNameFromString(const std::string& content);
+        // Editable public scalar fields with literal initializers on the named C# class.
+        static std::optional<std::vector<jasperengine::ScriptProperty>> csharpFields(
+            const std::string& content, const std::string& className);
         static std::vector<jasperengine::ScriptProperty> parseScriptProperties(const std::filesystem::path& scriptPath);
         static std::vector<jasperengine::ScriptProperty> parseScriptPropertiesFromString(const std::string& content, const std::string& sourceName = "memory");
     };

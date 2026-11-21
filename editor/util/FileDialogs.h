@@ -62,7 +62,7 @@ namespace jasperengine::editor{
                 filterItems.push_back({ "Shader files", "vert,frag" });
             }
             if (filterFlags & FILE_DIALOG_SCRIPT) {
-                filterItems.push_back({ "Script files", "lua,cpp,cc,cxx,h,hh,hpp,hxx" });
+                filterItems.push_back({ "Script files", "cs,cpp,cc,cxx,h,hh,hpp,hxx" });
             }
             if (filterFlags & FILE_DIALOG_PREFAB) {
                 filterItems.push_back({ "Prefabs", "prefab" });

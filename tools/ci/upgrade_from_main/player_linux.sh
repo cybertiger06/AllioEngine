@@ -3,7 +3,7 @@
 # until it quits after its last scene (generate.sh, check.sh). Two methods:
 #   compile   (default) the editor's command-line exporter, then the exported CMake project built
 #             as a user's game (no presets, no Werror); in the Linux build image
-#   prebuilt  jasperengine-editor build --method prebuilt (S30): the project's content next to a
+#   prebuilt  allioengine-editor build --method prebuilt (S30): the project's content next to a
 #             prebuilt player runtime, no compiler; in the runtime image (JASPER_PLAYERS_DIR)
 #
 #   player_linux.sh <editor> <project-dir> <work-dir> [compile|prebuilt]

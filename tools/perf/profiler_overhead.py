@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # (c) Eduardo Doria and contributors
 # SPDX-License-Identifier: MIT
-"""The profiler's CPU overhead (spec S15 AC4, R27/R28), measured with `jasperengine-editor benchmark`.
+"""The profiler's CPU overhead (spec S15 AC4, R27/R28), measured with `allioengine-editor benchmark`.
 
-    tools/perf/profiler_overhead.py --editor build/linux/editor-install/bin/jasperengine-editor \\
+    tools/perf/profiler_overhead.py --editor build/linux/editor-install/bin/allioengine-editor \\
         --baseline <editor without the profiler> --project tools/fixtures/post-processing \\
         [--scene <scene>] [--runs 3] [--frames 300] [--warmup 120] [--json out.json]
 

@@ -28,6 +28,7 @@
 #include "publish/PayloadValidator.h"
 #include "serialization/CookedScene.h"
 #include "util/FileUtils.h"
+#include "util/CSharpBuild.h"
 #include "util/ApplePrivacy.h"
 #include "util/NativePlugins.h"
 #include "util/NativeNeeds.h"
@@ -189,6 +190,10 @@ editor::BuildMethodChoice editor::Exporter::chooseBuildMethod(Project* proj, con
     choice.reasons.insert(choice.reasons.end(), native.compileReasons.begin(), native.compileReasons.end());
     choice.carried = native.carried;
     choice.nativeWarnings = native.mockWarnings;
+    std::string scriptError;
+    if (!csharp::sources(proj->getProjectPath(), scriptError).empty())
+        choice.reasons.push_back("C# scripts require the AllioEngine desktop runtime");
+    if (!scriptError.empty()) choice.reasons.push_back(scriptError);
     // (e) forced
     if (cfg.method == BuildMethod::Compile) choice.reasons.push_back("Compile chosen in Build Settings");
     choice.method = choice.reasons.empty() ? BuildMethod::Prebuilt : BuildMethod::Compile;
@@ -401,7 +406,7 @@ bool editor::Exporter::selectPlayerVariant() {
                  std::string list;
                  for (const std::string& module : fitting.modules) list += (list.empty() ? "" : " ") + module;
                  return list;
-             }() + ") but is not installed: the build uses " + best->id + ". Install it (Build Settings > Download, `jasperengine-editor players download " +
+             }() + ") but is not installed: the build uses " + best->id + ". Install it (Build Settings > Download, `allioengine-editor players download " +
              fittingId + "`) for a smaller game.");
     }
     player = std::make_shared<PlayerInfo>(*best);

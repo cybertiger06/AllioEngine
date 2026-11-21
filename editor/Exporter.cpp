@@ -57,6 +57,7 @@
 #include "tilemap/Tileset.h"
 #include "io/AtomicFile.h"
 #include "util/FileUtils.h"
+#include "util/CSharpBuild.h"
 #include "util/Util.h"
 #include "util/ShellEnv.h"
 #include "util/MsBuildProgress.h"
@@ -83,7 +84,7 @@
 #include "asset/ImportedAssets.h"
 #include "sprite/SpriteSheetPool.h"
 #include "util/StringUtils.h"
-#include "resources/icons/jasperengine-logo_png.h"
+#include "StudioArtwork.h"
 
 #include "stb_image.h"
 #include "tinyxml2.h"
@@ -996,7 +997,7 @@ bool editor::Exporter::writeWebFavicon(const fs::path& target) {
     if (!icon.empty() && extension == ".png" && fs::is_regular_file(icon, ec)) return copyOrFail(icon, target);
     // a page without one makes the browser ask for /favicon.ico (a 404 in the console), as Unity's
     // template ships its own
-    return writeOrFail(target, std::string(reinterpret_cast<const char*>(jasperengine_logo_png), jasperengine_logo_png_len));
+    return writeOrFail(target, std::string(reinterpret_cast<const char*>(studioIcon), sizeof(studioIcon)));
 }
 
 bool editor::Exporter::removeStale(const fs::path& path) {
@@ -1184,6 +1185,15 @@ void editor::Exporter::runExport() {
     } generatedGuard(project);
 
     if (project && !checkRootsPinned()) return;
+    std::string scriptError;
+    if (project) managedSources = csharp::sources(project->getProjectPath(), scriptError);
+    if (!scriptError.empty()) { setError(scriptError); return; }
+    if (project && (config.mode == ExportMode::Web || (config.mode == ExportMode::Player &&
+            (config.platform == BuildPlatform::Web || config.platform == BuildPlatform::IOS ||
+             config.platform == BuildPlatform::Android))) && !managedSources.empty()) {
+        setError("C# scripting currently supports desktop exports. Select Windows, macOS or Linux.");
+        return;
+    }
 
     // never into the project: the editor would import the export's files as project assets
     if (project) {
@@ -1523,7 +1533,7 @@ fs::path editor::Exporter::getSharedBuildCacheDir() const {
         const std::string platform = Generator::getGeneratorPlatform(config.cmakeGenerator);
         if (!platform.empty()) key += "\n" + platform;
     }
-    return App::getUserCacheBaseDir() / "jasperengine" / "compile-builds" / sha256Hex(key).substr(0, 16);
+    return App::getUserCacheBaseDir() / "allioengine" / "compile-builds" / sha256Hex(key).substr(0, 16);
 }
 
 std::string editor::Exporter::getEffectiveGenerator() const {
@@ -1950,6 +1960,13 @@ bool editor::Exporter::collectDesktopArtifacts() {
     }
     if (!copyLicenses()) {
         return false;
+    }
+
+    for (const char* name : {"Allio.Game.dll", "Allio.Managed.dll", "Allio.Managed.runtimeconfig.json"}) {
+        const auto destination = config.destinationDir / "managed" / name;
+        if (managedSources.empty()) {
+            if (!removeStale(destination)) return false;
+        } else if (!copyOrFail(exePath.parent_path() / "managed" / name, destination)) return false;
     }
 
     bool packCreated = false;
@@ -3779,7 +3796,7 @@ bool editor::Exporter::copyAssets() {
         // Skip C++ source/header files; registered scripts ship via copyCppScripts
         if (isDirectory) return TreeStep::Enter;
         std::error_code typeError;
-        if (!entry.is_regular_file(typeError) || isCppSourceFile(entry.path())) return TreeStep::Skip;
+        if (!entry.is_regular_file(typeError) || isCppSourceFile(entry.path()) || Util::isCSharpFile(FileUtils::pathToUtf8(entry.path().extension()))) return TreeStep::Skip;
 
         // A project that only bakes its Noise Graphs pays nothing for them (T2 R45)
         if (!shipsForNoise(relPath, moduleUsageKnown ? &moduleUsage : nullptr)) return TreeStep::Skip;
@@ -4095,7 +4112,7 @@ bool editor::Exporter::copyLua() {
 
         // Skip C++ source/header files; registered scripts ship via copyCppScripts
         std::error_code ec;
-        if (!entry.is_regular_file(ec) || isCppSourceFile(entry.path())) return TreeStep::Skip;
+        if (!entry.is_regular_file(ec) || isCppSourceFile(entry.path()) || Util::isCSharpFile(FileUtils::pathToUtf8(entry.path().extension()))) return TreeStep::Skip;
 
         if (luaRootIsAssetsRoot && !isLuaSourceFile(entry.path())) return TreeStep::Skip;
         if (luaRootIsProjectRoot && !isLuaExportFile(entry.path())) return TreeStep::Skip;
@@ -4464,7 +4481,7 @@ bool editor::Exporter::copyEngine() {
     }
 
     if (sdkRoot.empty()) {
-        setError("JasperEngine SDK root not found near executable");
+        setError("AllioEngine SDK root not found near executable");
         return false;
     }
 
@@ -4487,6 +4504,20 @@ bool editor::Exporter::copyEngine() {
         return true;
     };
 
+    // A source export keeps the .cs files and an SDK-style project that CMake can rebuild.
+    const fs::path gameScripts = getExportProjectRoot() / "csharp";
+    if (managedSources.empty()) {
+        if (!removeStale(gameScripts / "Allio.Game.csproj")) return false;
+    } else {
+        if (!copyDir("managed")) return false;
+        for (const auto& file : managedSources) {
+            if (!copyOrFail(project->getProjectPath() / file, gameScripts / "src" / file)) return false;
+        }
+        if (!csharp::writeProject(gameScripts, "src", managedSources, "../../managed/Allio.Managed/Allio.Managed.csproj")) {
+            setError("Cannot generate the exported C# project");
+            return false;
+        }
+    }
     if (!copyDir("core")) return false;
     if (!copyDir("libs")) return false;
     if (!copyDir("platform")) return false;
@@ -6775,7 +6806,7 @@ bool editor::Exporter::writeAppIcon() {
     // --- app_icon.h: RGBA images the window backends set at startup ---
     const std::vector<int> runtimeSizes = filterSizes({16, 32, 64, 128});
     std::string header;
-    header += "// Generated by the JasperEngine Editor export from the project icon. Do not edit.\n";
+    header += "// Generated by the AllioEngine Editor export from the project icon. Do not edit.\n";
     header += "#ifndef JASPERENGINE_APP_ICON_H\n#define JASPERENGINE_APP_ICON_H\n\n";
     header += "typedef struct JasperEngineAppIconImage { int width; int height; const unsigned char* pixels; } JasperEngineAppIconImage;\n\n";
     for (int size : runtimeSizes) {

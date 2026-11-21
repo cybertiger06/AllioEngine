@@ -11,6 +11,13 @@
 using namespace jasperengine;
 using namespace jasperengine::editor;
 
+std::string ScriptTemplates::csharp(const std::string& className) {
+    // A verbatim identifier also works for C# reserved words entered as filenames.
+    return "using AllioEngine;\n\npublic sealed class @" + className + " : Behaviour\n{\n"
+           "    public override void Start()\n    {\n    }\n\n"
+           "    public override void Update(float deltaTime)\n    {\n    }\n}\n";
+}
+
 std::string ScriptTemplates::lua(const std::string& classOrModuleName) {
     std::ostringstream out;
     out << "-- " << classOrModuleName << ".lua\n";

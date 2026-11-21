@@ -29,13 +29,13 @@ BEGIN
     BEGIN
         BLOCK "040904b0" // U.S. English, Unicode
         BEGIN
-            VALUE "CompanyName",      "JasperEngine Community\0"
+            VALUE "CompanyName",      "Allio Studio\0"
             VALUE "FileDescription",  "@JASPERENGINE_FILE_DESCRIPTION@\0"
             VALUE "FileVersion",      "@JASPERENGINE_EDITOR_VERSION@\0"
             VALUE "InternalName",     "@JASPERENGINE_INTERNAL_NAME@\0"
             VALUE "LegalCopyright",   "Copyright (C) 2026 Eduardo Doria and contributors. MIT License.\0"
             VALUE "OriginalFilename", "@JASPERENGINE_ORIGINAL_FILENAME@\0"
-            VALUE "ProductName",      "JasperEngine\0"
+            VALUE "ProductName",      "AllioEngine\0"
             VALUE "ProductVersion",   "@JASPERENGINE_EDITOR_VERSION@\0"
         END
     END

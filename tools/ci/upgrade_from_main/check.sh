@@ -11,7 +11,7 @@
 #      GUIDs, every reference resolving), second open (stable: nothing rewritten), and the
 #      game's input and autopilot transcripts against the old editor's; screenshots compared;
 #   2. the migrated project exported and compiled for Linux (player_linux.sh), and built with the
-#      prebuilt Linux player (S30: jasperengine-editor build --method prebuilt, in the no-compiler
+#      prebuilt Linux player (S30: allioengine-editor build --method prebuilt, in the no-compiler
 #      runtime image; needs the player runtimes: tools/build.sh players): each transcript against
 #      the old Linux player's;
 #   3. the same export for the web (player_web.sh, the web image): its transcript against the
@@ -34,8 +34,8 @@ while [[ $# -gt 0 ]]; do
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
 done
-EDITOR=/src/build/linux/editor-install/bin/jasperengine-editor
-[[ -x "$ROOT/build/linux/editor-install/bin/jasperengine-editor" ]] || { echo "no editor: run tools/build.sh linux" >&2; exit 1; }
+EDITOR=/src/build/linux/editor-install/bin/allioengine-editor
+[[ -x "$ROOT/build/linux/editor-install/bin/allioengine-editor" ]] || { echo "no editor: run tools/build.sh linux" >&2; exit 1; }
 [[ -f "$ROOT/$FIXTURE/SOURCE.yaml" ]] || { echo "no fixture at $FIXTURE: run generate.sh" >&2; exit 1; }
 [[ -d "$ROOT/build/players" ]] || { echo "no player runtimes in build/players: run tools/build.sh players" >&2; exit 1; }
 

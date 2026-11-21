@@ -95,7 +95,7 @@ namespace jasperengine::editor {
         unsigned int width = 1280;
         unsigned int height = 720;
         bool resizable = true;
-        std::string title = "JasperEngine";
+        std::string title = "AllioEngine";
     };
 
     // SceneManager loading screen of generated builds and the editor's Play

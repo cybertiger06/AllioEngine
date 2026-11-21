@@ -9,6 +9,7 @@
 #include "Backend.h"
 #include "Platform.h"
 #include "Theme.h"
+#include "StudioArtwork.h"
 #include "external/IconsFontAwesome6.h"
 #include "hub/HubPaths.h"
 #include "pixelart/PixelArtSettings.h"
@@ -77,7 +78,7 @@ hub::LaunchOptions& hub::launchOptions() {
 fs::path ProjectHubWindow::defaultLocation() {
     const fs::path last = AppSettings::getHubLastLocation();
     if (!last.empty()) return last;
-    return homeDirectory() / "JasperEngine Projects";
+    return homeDirectory() / "AllioEngine Projects";
 }
 
 std::string ProjectHubWindow::createProblem(const std::string& name, const fs::path& parent) {
@@ -217,7 +218,13 @@ void ProjectHubWindow::show() {
 
 void ProjectHubWindow::drawNavigation() {
     ImGui::BeginChild("##hubNavigation", ImVec2(Theme::dpi(190.0f), 0), ImGuiChildFlags_Borders);
-    ImGui::TextUnformatted("JasperEngine");
+    static const std::vector<uint8_t> wordmark(studioWordmark, studioWordmark + sizeof(studioWordmark));
+    Texture* logo = thumbnailFromBytes("allio-studio-wordmark", wordmark);
+    if (logo && logo->getRender() && logo->getRender()->isCreated() && logo->getWidth() > 0) {
+        const float width = std::min(ImGui::GetContentRegionAvail().x, Theme::dpi(152.0f));
+        ImGui::Image(Backend::getImGuiTexture(logo->getRender()), ImVec2(width, width * logo->getHeight() / logo->getWidth()));
+    }
+    ImGui::TextUnformatted("AllioEngine");
     ImGui::TextDisabled("Project Hub");
     ImGui::Separator();
     struct Item {
@@ -364,7 +371,7 @@ void ProjectHubWindow::drawProjects() {
                         hub::recent::relocate(records, project.path, dir);
                         changed = true;
                     } else {
-                        projectsMessage = "Not a JasperEngine project: " + picked;
+                        projectsMessage = "Not an AllioEngine project: " + picked;
                     }
                 }
             }
@@ -503,7 +510,7 @@ void ProjectHubWindow::drawNewProject() {
 void ProjectHubWindow::openFolder(const fs::path& dir) {
     std::error_code ec;
     if (!fs::exists(dir / "project.yaml", ec)) {
-        openMessage = "Not a JasperEngine project: " + FileUtils::pathToUtf8(dir) + " has no project.yaml.";
+        openMessage = "Not an AllioEngine project: " + FileUtils::pathToUtf8(dir) + " has no project.yaml.";
         return;
     }
     openMessage.clear();
@@ -513,7 +520,7 @@ void ProjectHubWindow::openFolder(const fs::path& dir) {
 void ProjectHubWindow::drawOpen() {
     ImGui::TextUnformatted("Open");
     ImGui::Separator();
-    ImGui::TextWrapped("A JasperEngine project is a folder with a project.yaml.");
+    ImGui::TextWrapped("An AllioEngine project is a folder with a project.yaml.");
     if (ImGui::Button("Open Folder...", ImVec2(Theme::dpi(160.0f), 0))) {
         const std::string picked = FileDialogs::openFileDialog(FileUtils::pathToUtf8(defaultLocation()), FILE_DIALOG_ALL, true);
         if (!picked.empty()) openFolder(FileUtils::pathFromUtf8(picked));

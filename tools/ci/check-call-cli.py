@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""The `jasperengine-editor call` paths that need no editor, on every desktop OS (S31 AC15):
+"""The `allioengine-editor call` paths that need no editor, on every desktop OS (S31 AC15):
 `call create_entity --help` lists the tool's flags and examples, `call --dry-run` prints the
 converted arguments, and a bad value exits 2. The Linux MCP suite tests the rest
 (tools/mcp/tests/test_call_cli.py).
 
     python3 tools/ci/check-call-cli.py <editor binary | directory to search>
 
-A directory is searched for jasperengine-editor-cmd.exe (Windows console build), else
-jasperengine-editor.exe or jasperengine-editor.
+A directory is searched for allioengine-editor-cmd.exe (Windows console build), else
+allioengine-editor.exe or allioengine-editor.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-NAMES = ("jasperengine-editor-cmd.exe", "jasperengine-editor.exe", "jasperengine-editor")
+NAMES = ("allioengine-editor-cmd.exe", "allioengine-editor.exe", "allioengine-editor")
 
 
 def find_editor(start: Path) -> Path:

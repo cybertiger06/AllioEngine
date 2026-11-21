@@ -435,7 +435,7 @@ void TitleDesignerWindow::drawPropertiesHeader() {
 void TitleDesignerWindow::drawProperties() {
     JE_PROFILE_SCOPE("TD drawProperties");
     if (newerVersion()) {
-        ImGui::TextDisabled("Written by a newer JasperEngine: nothing to show here");
+        ImGui::TextDisabled("Written by a newer AllioEngine: nothing to show here");
         return;
     }
     if (!doc.isOpen()) {

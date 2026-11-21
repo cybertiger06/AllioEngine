@@ -148,9 +148,9 @@ bool Renderer::State::supportsVulkanDevice(
 bool Renderer::State::createVulkanDevice(){
     VkApplicationInfo application{};
     application.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    application.pApplicationName = "JasperEngine Editor";
+    application.pApplicationName = "AllioEngine Editor";
     application.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    application.pEngineName = "JasperEngine";
+    application.pEngineName = "AllioEngine";
     application.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     application.apiVersion = VK_API_VERSION_1_3;
 

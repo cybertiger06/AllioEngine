@@ -62,7 +62,7 @@ namespace {
 
 bool ScriptAttach::isScriptFile(const fs::path& file) {
     const std::string path = file.string();
-    return Util::isLuaFile(path) || Util::isHeaderFile(path) || Util::isSourceFile(path);
+    return Util::isCSharpFile(path) || Util::isLuaFile(path) || Util::isHeaderFile(path) || Util::isSourceFile(path);
 }
 
 bool ScriptAttach::makeEntry(Project* project, const fs::path& file, const std::string& classNameArg, ScriptEntry& entry,
@@ -71,6 +71,16 @@ bool ScriptAttach::makeEntry(Project* project, const fs::path& file, const std::
     std::error_code ec;
     entry = ScriptEntry();
     entry.enabled = true;
+    if (ext == ".cs") {
+        if (!Util::isInsidePath(file, project->getProjectPath())) {
+            error = "C# scripts must be inside the project directory.";
+            return false;
+        }
+        entry.type = ScriptType::CSHARP;
+        entry.path = attachRelative(project, file);
+        entry.className = classNameArg.empty() ? FileUtils::pathToUtf8(file.stem()) : classNameArg;
+        return true;
+    }
     if (ext == ".lua") {
         if (!Util::isInsidePath(file, project->getLuaPath())) {
             error = "Lua scripts must be inside the project's Lua directory \"" + attachLuaRoot(project) +
@@ -115,7 +125,7 @@ bool ScriptAttach::makeEntry(Project* project, const fs::path& file, const std::
             return false;
         }
     } else {
-        error = "path must be a .lua script or a C++ script (.h/.hpp header or .cpp source).";
+        error = "path must be a C# script (.cs) or a C++ script (.h/.hpp header or .cpp source).";
         return false;
     }
     entry.type = ScriptType::CPP;
@@ -216,13 +226,12 @@ bool ScriptAttach::attachFile(Project* project, SceneProject* sceneProject, cons
 std::vector<ScriptCandidate> ScriptAttach::findProjectScripts(Project* project) {
     std::vector<ScriptCandidate> scripts;
     const fs::path projectPath = project->getProjectPath();
-    const fs::path luaPath = project->getLuaPath();
-    for (const fs::path& rel : project->findProjectFiles([](const std::string& p) { return Util::isLuaFile(p); })) {
+
+    for (const fs::path& rel : project->findProjectFiles([](const std::string& p) { return Util::isCSharpFile(p); })) {
         const fs::path file = (projectPath / rel).lexically_normal();
-        if (!Util::isInsidePath(file, luaPath)) continue;
         ScriptCandidate candidate;
-        candidate.type = ScriptType::LUA;
-        candidate.name = file.stem().string();
+        candidate.type = ScriptType::CSHARP;
+        candidate.name = FileUtils::pathToUtf8(file.stem());
         candidate.file = file;
         scripts.push_back(std::move(candidate));
     }

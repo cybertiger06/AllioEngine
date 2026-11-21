@@ -51,7 +51,7 @@ namespace {
 
 std::optional<std::string> TextEncoding::codePageProblem(unsigned activeCodePage) {
     if (activeCodePage == 65001) return std::nullopt;
-    return std::string("JasperEngine Editor needs Windows 10 version 1903 or later: this Windows ignores the "
+    return std::string("AllioEngine Editor needs Windows 10 version 1903 or later: this Windows ignores the "
                        "editor's UTF-8 setting (code page ") + std::to_string(activeCodePage) +
            "), so names in other languages would corrupt projects. Update Windows to use the editor "
            "(games made with it still run here).";
@@ -65,7 +65,7 @@ bool TextEncoding::checkWindowsCodePage() {
         std::fprintf(stderr, "%s\n", problem->c_str());
         std::fflush(stderr);
     } else {
-        MessageBoxW(nullptr, widenUtf8(*problem).c_str(), L"JasperEngine Editor", MB_OK | MB_ICONERROR);
+        MessageBoxW(nullptr, widenUtf8(*problem).c_str(), L"AllioEngine Editor", MB_OK | MB_ICONERROR);
     }
     return false;
 #else

@@ -54,7 +54,7 @@ elseif(JASPERENGINE_EDITOR_VERSION MATCHES "^v?([0-9]+)\\.([0-9]+)$")
     set(JASPERENGINE_VERSION_NUMERIC "${CMAKE_MATCH_1},${CMAKE_MATCH_2},0,0")
 endif()
 
-message(STATUS "JasperEngine version is ${JASPERENGINE_EDITOR_VERSION}")
+message(STATUS "AllioEngine version is ${JASPERENGINE_EDITOR_VERSION}")
 
 if(APPLE)
     enable_language(OBJCXX)
@@ -165,7 +165,7 @@ endif()
 function(jasperengine_add_windows_resource out_var target_name icon_name original_filename description)
     set(JASPERENGINE_ORIGINAL_FILENAME ${original_filename})
     set(JASPERENGINE_FILE_DESCRIPTION ${description})
-    set(JASPERENGINE_INTERNAL_NAME ${target_name})
+    get_filename_component(JASPERENGINE_INTERNAL_NAME "${original_filename}" NAME_WE)
 
     if(icon_name)
         set(JASPERENGINE_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/resources/icons/${icon_name}")
@@ -182,7 +182,7 @@ function(jasperengine_add_windows_resource out_var target_name icon_name origina
 
     set(generated_rc "${CMAKE_CURRENT_BINARY_DIR}/resources/${target_name}.rc")
     configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/resources/icons/jasperengine-editor.rc.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/resources/icons/allioengine-editor.rc.in"
         ${generated_rc}
         @ONLY
     )
@@ -206,9 +206,9 @@ if(WIN32)
     jasperengine_add_windows_resource(
         JASPERENGINE_EDITOR_ICON_OBJECTS
         jasperengine-editor
-        "jasperengine-editor.ico"
-        "jasperengine-editor.exe"
-        "JasperEngine Editor"
+        "allioengine-editor.ico"
+        "allioengine-editor.exe"
+        "AllioEngine Editor"
     )
 endif()
 
@@ -224,7 +224,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # Sizes a window manager or dock actually draws, up to a HiDPI dock's 256.
     # 512 is left out: on the wire it alone would outweigh the whole set.
     foreach(icon_size IN ITEMS 16 32 48 64 128 256)
-        set(icon_png "${JASPERENGINE_LINUX_ICON_DIR}/jasperengine-editor-${icon_size}.png")
+        set(icon_png "${JASPERENGINE_LINUX_ICON_DIR}/allioengine-editor-${icon_size}.png")
         file(READ "${icon_png}" icon_hex HEX)
         string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," icon_bytes "${icon_hex}")
         string(APPEND wm_icon_header "static const unsigned char jasperengine_wm_icon_${icon_size}[] = {${icon_bytes}};\n\n")
@@ -382,6 +382,15 @@ set(NFD_PORTAL ON CACHE BOOL "Use xdg-desktop-portal instead of GTK") # For NFD
 set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "Enable parse tools" FORCE) # For yaml-cpp
 
 set(GENERATED_DIR "${CMAKE_BINARY_DIR}/generated")
+set(allio_wordmark "${CMAKE_CURRENT_SOURCE_DIR}/editor/resources/branding/allio-studio-wordmark.png")
+set(allio_icon "${CMAKE_CURRENT_SOURCE_DIR}/editor/resources/icons/allioengine-editor.png")
+foreach(artwork IN ITEMS allio_wordmark allio_icon)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${${artwork}}")
+    file(READ "${${artwork}}" artwork_hex HEX)
+    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," ${artwork}_bytes "${artwork_hex}")
+endforeach()
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/editor/resources/branding/StudioArtwork.h.in"
+               "${GENERATED_DIR}/StudioArtwork.h" @ONLY)
 
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/EditorVersion.h.in"
@@ -646,7 +655,7 @@ if(WIN32)
         jasperengine
         ""
         "${CMAKE_SHARED_LIBRARY_PREFIX}jasperengine${CMAKE_SHARED_LIBRARY_SUFFIX}"
-        "JasperEngine Runtime"
+        "AllioEngine Runtime"
     )
     target_sources(jasperengine PRIVATE ${JASPERENGINE_LIB_ICON_OBJECTS})
 endif()
@@ -1139,6 +1148,7 @@ set(JASPERENGINE_EDITOR_SOURCES
     ${EDITOR_DIR}/util/TerrainMapUtils.cpp
     ${EDITOR_DIR}/util/UIUtils.cpp
     ${EDITOR_DIR}/util/UiItemLocator.cpp
+    ${EDITOR_DIR}/util/CSharpBuild.cpp
     ${EDITOR_DIR}/util/CommandRunner.cpp
     ${EDITOR_DIR}/util/TextEncoding.cpp
     ${EDITOR_DIR}/util/SystemFonts.cpp
@@ -1887,6 +1897,7 @@ add_executable(
 )
 
 configure_jasperengine_editor_target(jasperengine-editor)
+set_target_properties(jasperengine-editor PROPERTIES OUTPUT_NAME allioengine-editor)
 target_link_libraries(jasperengine-editor PRIVATE jasperengine-editor-objects)
 
 if(WIN32)
@@ -1899,9 +1910,9 @@ endif()
 
 # The dylib goes in Contents/MacOS, where @loader_path already finds it.
 if(APPLE)
-    set(JASPERENGINE_BUNDLE_NAME "JasperEngine")
-    set(JASPERENGINE_BUNDLE_IDENTIFIER "com.jaspergameengine.editor")
-    set(JASPERENGINE_BUNDLE_ICON_NAME "jasperengine.icns")
+    set(JASPERENGINE_BUNDLE_NAME "AllioEngine")
+    set(JASPERENGINE_BUNDLE_IDENTIFIER "com.alliostudio.allioengine")
+    set(JASPERENGINE_BUNDLE_ICON_NAME "allioengine.icns")
 
     # CFBundleShortVersionString takes digits and dots only.
     string(REPLACE "," "." JASPERENGINE_BUNDLE_VERSION "${JASPERENGINE_VERSION_NUMERIC}")
@@ -1913,8 +1924,8 @@ if(APPLE)
         set(JASPERENGINE_BUNDLE_MIN_OS "12.0")
     endif()
 
-    set(JASPERENGINE_ICON_PNG "${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/resources/icons/jasperengine-editor.png")
-    set(JASPERENGINE_ICONSET "${CMAKE_CURRENT_BINARY_DIR}/resources/jasperengine.iconset")
+    set(JASPERENGINE_ICON_PNG "${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/resources/icons/allioengine-editor.png")
+    set(JASPERENGINE_ICONSET "${CMAKE_CURRENT_BINARY_DIR}/resources/allioengine.iconset")
     set(JASPERENGINE_ICNS "${CMAKE_CURRENT_BINARY_DIR}/resources/${JASPERENGINE_BUNDLE_ICON_NAME}")
 
     add_custom_command(
@@ -2071,9 +2082,9 @@ if(WIN32)
     jasperengine_add_windows_resource(
         JASPERENGINE_EDITOR_CMD_ICON_OBJECTS
         jasperengine-editor-cmd
-        "jasperengine-editor-cmd.ico"
-        "jasperengine-editor-cmd.exe"
-        "JasperEngine Editor (command line)"
+        "allioengine-editor-cmd.ico"
+        "allioengine-editor-cmd.exe"
+        "AllioEngine Editor (command line)"
     )
 
     add_executable(
@@ -2086,6 +2097,7 @@ if(WIN32)
     )
 
     configure_jasperengine_editor_target(jasperengine-editor-cmd)
+    set_target_properties(jasperengine-editor-cmd PROPERTIES OUTPUT_NAME allioengine-editor-cmd)
     target_link_libraries(jasperengine-editor-cmd PRIVATE jasperengine-editor-objects)
     jasperengine_add_windows_manifest(jasperengine-editor-cmd)
     add_dependencies(jasperengine-editor-cmd copy_jasperengine_editor_engine)
@@ -2226,20 +2238,20 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/editor/resources/sound-library/library/
 # Desktop integration: a launcher entry plus the themed icons the launcher,
 # taskbar and alt-tab switcher look up by the "jasperengine-editor" icon name.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/resources/linux/jasperengine-editor.desktop
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/resources/linux/allioengine-editor.desktop
             DESTINATION share/applications
             CONFIGURATIONS ${JASPERENGINE_INSTALL_CONFIGURATIONS}
     )
 
-    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/resources/linux/com.jaspergameengine.editor.metainfo.xml
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/${EDITOR_DIR}/resources/linux/com.alliostudio.allioengine.metainfo.xml
             DESTINATION share/metainfo
             CONFIGURATIONS ${JASPERENGINE_INSTALL_CONFIGURATIONS}
     )
 
     foreach(icon_size IN ITEMS 16 32 48 64 128 256 512)
-        install(FILES ${JASPERENGINE_LINUX_ICON_DIR}/jasperengine-editor-${icon_size}.png
+        install(FILES ${JASPERENGINE_LINUX_ICON_DIR}/allioengine-editor-${icon_size}.png
                 DESTINATION share/icons/hicolor/${icon_size}x${icon_size}/apps
-                RENAME jasperengine-editor.png
+                RENAME allioengine-editor.png
                 CONFIGURATIONS ${JASPERENGINE_INSTALL_CONFIGURATIONS}
         )
     endforeach()

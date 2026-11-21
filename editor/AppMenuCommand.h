@@ -79,7 +79,7 @@ namespace jasperengine::editor {
         CreateEmptyChild,
         AddComponent,
         AssetsCreateFolder,
-        AssetsCreateLuaScript,
+        AssetsCreateCSharpScript,
         AssetsCreateHtmlDocument,
         AssetsCreateCppScript,
         AssetsShowInFileManager,

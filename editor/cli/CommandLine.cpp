@@ -287,12 +287,12 @@ static bool parseBackendList(const std::string& value, std::set<ShaderBackend>& 
 
 static std::string getCommandName(const char* executableName) {
     if (!executableName || !*executableName) {
-        return "jasperengine-editor";
+        return "allioengine-editor";
     }
 
     const fs::path executablePath(executableName);
     const std::string filename = executablePath.filename().string();
-    return filename.empty() ? std::string("jasperengine-editor") : filename;
+    return filename.empty() ? std::string("allioengine-editor") : filename;
 }
 
 static void printMainUsage(const std::string& commandName) {
@@ -3821,7 +3821,7 @@ int runCheck(int argc, char** argv, const std::string& commandName) {
             std::cerr << ProjectChecks::toText(finding) << "\n";
         }
         for (const std::string& line : run.cppLogTail) std::cerr << "  " << line << "\n";
-        if (run.pixelArtFixable > 0) std::cerr << "fix: " << "jasperengine-editor call --project " + root.string() + " check_pixel_art '{\"fix\":[\"all\"],\"output\":true}'" << "\n";
+        if (run.pixelArtFixable > 0) std::cerr << "fix: " << "allioengine-editor call --project " + root.string() + " check_pixel_art '{\"fix\":[\"all\"],\"output\":true}'" << "\n";
         if (uiShown > 0) {
             std::cerr << "(UI warnings are shown once, after the edit that introduced them; " << commandName
                       << " check --ui lists them all)\n";
@@ -3852,7 +3852,7 @@ int runCheck(int argc, char** argv, const std::string& commandName) {
     } else {
         for (const ProjectChecks::Finding& finding : run.findings) std::cout << ProjectChecks::toText(finding) << "\n";
         // the CLI does not fix: the call that does (S42 R24)
-        if (run.pixelArtFixable > 0) std::cout << "fix: " << "jasperengine-editor call --project " + root.string() + " check_pixel_art '{\"fix\":[\"all\"],\"output\":true}'" << "\n";
+        if (run.pixelArtFixable > 0) std::cout << "fix: " << "allioengine-editor call --project " + root.string() + " check_pixel_art '{\"fix\":[\"all\"],\"output\":true}'" << "\n";
         std::cout.flush();
         if (!options.quiet) {
             for (const std::string& line : run.cppLogTail) std::cerr << "  " << line << "\n";

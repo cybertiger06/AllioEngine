@@ -212,11 +212,11 @@ void DataSafetyDialogs::showLockedProject(const ProjectLockInfo& info) {
     if (!beginModal(kLockedTitle)) {
         return;
     }
-    ImGui::Text("\"%s\" is already open in another JasperEngine editor (PID %lld on host \"%s\"%s%s).",
+    ImGui::Text("\"%s\" is already open in another AllioEngine editor (PID %lld on host \"%s\"%s%s).",
                 info.projectName.c_str(), (long long)info.pid, info.host.c_str(),
                 info.since.empty() ? "" : ", since ", info.since.c_str());
     ImGui::Text("Two editors on one project overwrite each other's changes.");
-    EditorModal::message("\"" + info.projectName + "\" is already open in another JasperEngine editor (PID " + std::to_string((long long)info.pid) +
+    EditorModal::message("\"" + info.projectName + "\" is already open in another AllioEngine editor (PID " + std::to_string((long long)info.pid) +
                          " on host \"" + info.host + "\"). Two editors on one project overwrite each other's changes.");
     ImGui::Spacing();
     ImGui::Separator();

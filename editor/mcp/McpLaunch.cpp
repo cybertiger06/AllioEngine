@@ -47,7 +47,7 @@ pid_t xvfbPid = -1;
 #endif
 
 std::string commandName(const char* executableName) {
-    return fs::path(executableName ? executableName : "jasperengine-editor").filename().string();
+    return fs::path(executableName ? executableName : "allioengine-editor").filename().string();
 }
 
 void printUsage(const std::string& name) {

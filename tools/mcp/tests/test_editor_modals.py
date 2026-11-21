@@ -85,7 +85,7 @@ SITES = {
     ("window/dialog/SceneSaveDialog.cpp", "Save Scene##SaveSceneModal"): "test_save_scene_dialog_completes",
     ("window/dialog/ProjectSaveDialog.cpp", "Save Project##SaveProjectModal"): "test_save_scene_dialog_completes",
     ("window/dialog/EditorSettingsWindow.cpp", "Preferences##EditorSettingsModal"): "test_about_scenes_prefabs_preferences",
-    ("window/dialog/AboutWindow.cpp", "About JasperEngine##AboutModal"): "test_about_scenes_prefabs_preferences",
+    ("window/dialog/AboutWindow.cpp", "About AllioEngine##AboutModal"): "test_about_scenes_prefabs_preferences",
     ("window/dialog/DataSafetyDialogs.cpp", "title"): "not driven: Recover, Saving Would Lose Data and Project Already Open need a crash or a second editor; open_project's allow_data_loss / recovery answer them",
     ("window/vcs/VcsUi.cpp", "popupId"): "not driven: needs a repository with a conflict; the vcs tools answer for agents",
     ("window/dialog/TextureSlicerToolDialog.cpp", "popupTitle"): "test_texture_slicer",
@@ -235,7 +235,7 @@ async def test_em1_build_settings(ed: Editor):
 @clean
 async def test_about_scenes_prefabs_preferences(ed: Editor):
     """AC1: the plain windows: each reported with its message and answered through its own button"""
-    for command, title, choice in (("help.about", "About JasperEngine", "ok"),
+    for command, title, choice in (("help.about", "About AllioEngine", "ok"),
                                    ("assets.scenesInBuild", "Scenes in Build", "ok"),
                                    ("assets.prefabs", "Prefabs", "cancel"),
                                    ("edit.preferences", "Preferences", "cancel")):
@@ -712,18 +712,18 @@ async def test_script_create(ed: Editor):
     d = await frame_dialog(ed, "New Script")
     ed.check(d, "the dialog")
     ed.check_eq(fields(d)["source"]["options"], ["New Script", "Existing Script"], f"{d}")
-    ed.check_in("Lua Script", fields(d)["template"]["options"], f"{d}")
-    r = await ed.call("respond_dialog", values={"template": "Lua Script", "name": "AgentScript"})
+    ed.check_in("C# Script", fields(d)["template"]["options"], f"{d}")
+    r = await ed.call("respond_dialog", values={"template": "C# Script", "name": "AgentScript"})
     ed.check_eq(fields(r["dialog"])["name"]["value"], "AgentScript", f"{r}")
     r = await ed.call("respond_dialog", choice="yes")
     ed.check("dialog" not in r, f"completed: {r}")
-    ed.check(list(ed.project.rglob("AgentScript.lua")), "the script exists")
+    ed.check(list(ed.project.rglob("AgentScript.cs")), "the script exists")
 
     # again: its files exist, which is asked
     await helper.frames(4)
     await open_new_script(helper)
     await frame_dialog(ed, "New Script")
-    await ed.call("respond_dialog", values={"template": "Lua Script", "name": "AgentScript"})
+    await ed.call("respond_dialog", values={"template": "C# Script", "name": "AgentScript"})
     r = await ed.call("respond_dialog", choice="yes")
     ed.check_eq(r["dialog"]["title"], "Script Files Already Exist", f"{r}")
     await ed.call("respond_dialog", choice="cancel")

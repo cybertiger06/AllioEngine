@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # End-to-end check of a Linux build (run tools/build.sh linux first):
 #
-#   1. build the game: with a prebuilt player (SMOKE_METHOD=prebuilt, the default: jasperengine-editor
+#   1. build the game: with a prebuilt player (SMOKE_METHOD=prebuilt, the default: allioengine-editor
 #      build, no compiler, in the image of docker/runtime.Dockerfile) or from source
 #      (SMOKE_METHOD=compile: export the project, build the exported CMake project)
 #   2. run the game under a virtual X server and screenshot it (prebuilt: the player's own
@@ -9,7 +9,7 @@
 #   3. open the project in the editor GUI and screenshot it
 #   4. bake a navmesh and query a path through the editor's MCP tools (tools/mcp/nav_smoke.py)
 #   (and after 2, record 30 frames of the project's start scene to PNG from the shell:
-#   `jasperengine-editor call --project ... --wait-job record_game`, S27 AC26)
+#   `allioengine-editor call --project ... --wait-job record_game`, S27 AC26)
 #
 # SMOKE_METHOD=prebuilt needs the player runtimes (tools/build.sh players, build/players;
 # SMOKE_PLAYERS_DIR=build/<dir> for others). SMOKE_QUIT_AFTER (30) frames are run there.
@@ -27,7 +27,7 @@
 # A smoke-expect.txt in the project lists lines (one per line, '#' comments) the game's log must
 # hold after its run (tools/fixtures/tween-curve: the tween's curve checked in the exported game);
 # such a project runs 120 frames unless SMOKE_QUIT_AFTER says otherwise.
-# SMOKE_METHOD=build builds as the editor's Build does with Method Compile (jasperengine-editor build
+# SMOKE_METHOD=build builds as the editor's Build does with Method Compile (allioengine-editor build
 # --method compile): only the engine modules the project needs (S34), unlike compile's source export.
 # A smoke-export-expect.txt lists lines that build's generated CMakeLists.txt must hold (build only),
 # a smoke-build-expect.txt lines only that build's game logs (a source export and a prebuilt player
@@ -67,7 +67,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EDITOR=build/linux/editor-install/bin/jasperengine-editor
+EDITOR=build/linux/editor-install/bin/allioengine-editor
 IMAGE=jasperengine/linux-build
 BACKEND="${SMOKE_BACKEND:-opengl}"
 OUT="${SMOKE_DIR:-build/smoke}"

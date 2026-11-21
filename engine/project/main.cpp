@@ -8,7 +8,7 @@ Image image(&scene);
 
 JASPERENGINE_INIT void init(){
     image.setAnchorPreset(AnchorPreset::CENTER);
-    image.setTexture("jasperengine.png");
+    image.setTexture("allio-studio.png");
 
     Engine::setScalingMode(Scaling::FITWIDTH);
     Engine::setCanvasSize(1000,480);

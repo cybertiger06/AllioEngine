@@ -120,8 +120,9 @@ bool ScriptReloadService::notifyChanged(const fs::path& pathIn){
     const fs::path path = pathIn.lexically_normal();
     const std::string text = FileUtils::pathToUtf8(path);
     const bool lua = Util::isLuaFile(text);
-    const bool cpp = !lua && cppReloadEnabled() && isCppScriptFile(path);
-    if (!lua && !cpp) {
+    const bool managed = Util::isCSharpFile(text);
+    const bool cpp = !lua && !managed && cppReloadEnabled() && isCppScriptFile(path);
+    if (!lua && !cpp && !managed) {
         // a C++ change waits for the next Play's build; the badge says so
         if (Util::isScriptFile(text) && isCppScriptFile(path)) ScriptStatus::get().setCpp(CppScriptState::Stale, {}, "changed while playing: built at the next Play");
         return false;
@@ -137,6 +138,8 @@ bool ScriptReloadService::notifyChanged(const fs::path& pathIn){
         case Policy::ReloadAndContinue:
             break;
     }
+    // A running CLR game keeps its assembly until Stop. The next Play compiles the edited sources.
+    if (managed) return false;
     // The debounce counts from the save (the file's time): a change the watcher delivers has
     // already settled for its quiet window and goes at once, an editor write waits the rest
     const auto now = std::chrono::steady_clock::now();

@@ -12,8 +12,8 @@ export JASPER_XVFB=none
 RUNS="${RUNS:-5}"
 OUT=build/gpu
 mkdir -p "$OUT"
-GL="$PWD/build/linux/editor-install/bin/jasperengine-editor"
-VK="$PWD/build/linux/editor-vulkan-install/bin/jasperengine-editor"   # absolute: the harness runs editors in scratch dirs
+GL="$PWD/build/linux/editor-install/bin/allioengine-editor"
+VK="$PWD/build/linux/editor-vulkan-install/bin/allioengine-editor"   # absolute: the harness runs editors in scratch dirs
 PY=(dbus-run-session -- uv run -q --no-project --with-requirements tools/mcp/requirements.txt python)
 parts=("$@"); [[ ${#parts[@]} -gt 0 ]] || parts=(s32 s15 s12 s10 s11 s13 s20 s16 vat)
 
@@ -62,7 +62,7 @@ for part in "${parts[@]}"; do
       s15)
         # the pre-S15 editor (f93897204 + the benchmark focus fix c3acfbd56) in build/s15base-install, and
         # that commit's tools/fixtures/post-processing in build/s15-fixture (both editors read it)
-        run s15-gl dbus-run-session -- python3 tools/perf/profiler_overhead.py --editor "$GL" --baseline build/s15base-install/bin/jasperengine-editor \
+        run s15-gl dbus-run-session -- python3 tools/perf/profiler_overhead.py --editor "$GL" --baseline build/s15base-install/bin/allioengine-editor \
             --project build/s15-fixture --runs "${S15_ROUNDS:-30}" --no-check --json "$OUT/s15-gl.json"
         ;;
       s16)
@@ -80,8 +80,8 @@ for part in "${parts[@]}"; do
         # AC4 as defined: the S15 merge (a4b621ebb) against its first parent (9f26ea019), both with the
         # benchmark focus fix, in build/s15-after-install and build/s15-before-install (built from
         # git archive trees), on that parent's tools/fixtures/post-processing (build/s15pair-fixture)
-        run s15pair-gl dbus-run-session -- python3 tools/perf/profiler_overhead.py --editor build/s15-after-install/bin/jasperengine-editor \
-            --baseline build/s15-before-install/bin/jasperengine-editor --project build/s15pair-fixture \
+        run s15pair-gl dbus-run-session -- python3 tools/perf/profiler_overhead.py --editor build/s15-after-install/bin/allioengine-editor \
+            --baseline build/s15-before-install/bin/allioengine-editor --project build/s15pair-fixture \
             --runs "${S15_ROUNDS:-30}" --no-check --json "$OUT/s15pair-gl.json"
         ;;
       vat)

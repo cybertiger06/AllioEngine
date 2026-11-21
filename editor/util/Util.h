@@ -269,11 +269,15 @@ namespace jasperengine::editor{
 
         inline static bool isScriptFile(const std::string& path) {
              static const std::unordered_set<std::string> scriptExtensions = {
-                ".lua", ".cpp", ".cc", ".cxx", ".h", ".hh", ".hpp", ".hxx"
+                ".cs", ".lua", ".cpp", ".cc", ".cxx", ".h", ".hh", ".hpp", ".hxx"
             };
 
             const std::string ext = fileExtension(path);
             return scriptExtensions.find(ext) != scriptExtensions.end();
+        }
+
+        inline static bool isCSharpFile(const std::string& path) {
+            return fileExtension(path) == ".cs";
         }
 
         inline static bool isLuaFile(const std::string& path) {

@@ -1811,6 +1811,8 @@ set(JASPERENGINE_SRCS
     core/render/OrderIndependentTransparency.cpp
     core/render/TiledLights.cpp
     core/script/AsyncOwner.cpp
+    core/script/CSharpHost.cpp
+    core/script/CSharpRuntime.cpp
     core/script/LuaBinding.cpp
     core/script/LuaFunctionBase.cpp
     core/script/LuaJson.cpp
@@ -2235,6 +2237,9 @@ list(FILTER JASPERENGINE_PICKING_SRCS INCLUDE REGEX "^core/picking/")
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set_source_files_properties(${JASPERENGINE_PICKING_SRCS} PROPERTIES COMPILE_OPTIONS "-ffp-contract=off")
 endif()
+jasperengine_skip_unity_build(
+    REASON "the CoreCLR host uses the platform dynamic-loader headers"
+    SOURCES core/script/CSharpHost.cpp)
 jasperengine_skip_unity_build(
     REASON "the picking sources: no floating-point contraction, per unit"
     SOURCES ${JASPERENGINE_PICKING_SRCS})
@@ -2716,6 +2721,20 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     # the project's runtime settings (above), for its platform main and its own sources
     target_compile_definitions(${APP_NAME} PRIVATE ${JASPERENGINE_APP_DEFINITIONS})
     jasperengine_stage_asan_runtime(${APP_NAME})
+
+    if(EXISTS "${PROJECT_ROOT}/csharp/Allio.Game.csproj")
+        if(EMSCRIPTEN OR ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
+            message(FATAL_ERROR "AllioEngine C# scripts require a desktop target with .NET 10.")
+        endif()
+        find_program(ALLIO_DOTNET dotnet REQUIRED)
+        # Build on each invocation so editing only a .cs file also updates the runnable game.
+        add_custom_target(allio-game-scripts
+            COMMAND "${ALLIO_DOTNET}" build "${PROJECT_ROOT}/csharp/Allio.Game.csproj"
+                    -c "$<CONFIG>" --nologo --artifacts-path "${CMAKE_BINARY_DIR}/csharp-artifacts"
+                    -o "$<TARGET_FILE_DIR:${APP_NAME}>/managed"
+            VERBATIM)
+        add_dependencies(${APP_NAME} allio-game-scripts)
+    endif()
 
     # Project script roots are injected here by the editor Exporter. They are
     # scoped to this target: include_directories() would reach the jasperengine

@@ -2,7 +2,7 @@
 # The scene merge driver end to end (docs/specs/S29-version-control.md R17-R22, AC14), in the
 # linux build image (docker/linux.Dockerfile has git):
 #
-#   tools/vcs-tests/merge_driver_test.sh [<jasperengine-editor>]
+#   tools/vcs-tests/merge_driver_test.sh [<allioengine-editor>]
 #
 # tools/fixtures/prefab-runtime is committed to a local temp repository (no remote) and two
 # branches edit its Main Scene.scene:
@@ -19,8 +19,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 EDITOR="${1:-}"
 if [[ -z "$EDITOR" ]]; then
-    for candidate in build/linux/editor/jasperengine-editor build/linux/editor-tests/jasperengine-editor \
-                     build/linux/editor-install/bin/jasperengine-editor; do
+    for candidate in build/linux/editor/allioengine-editor build/linux/editor-tests/allioengine-editor \
+                     build/linux/editor-install/bin/allioengine-editor; do
         if [[ -x "$ROOT/$candidate" ]]; then EDITOR="$ROOT/$candidate"; break; fi
     done
 fi

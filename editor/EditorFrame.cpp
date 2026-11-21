@@ -76,8 +76,8 @@ void EditorFrame::init(Renderer& renderer, App& app, void (*platformNewFrame)())
 
 std::string EditorFrame::formatWindowTitle(const std::string& projectName){
     return projectName.empty()
-        ? "Empty project - JasperEngine"
-        : projectName + " - JasperEngine";
+        ? "Empty project - AllioEngine"
+        : projectName + " - AllioEngine";
 }
 
 bool EditorFrame::isIdle() const{

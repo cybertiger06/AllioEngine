@@ -2577,15 +2577,9 @@ void editor::InspectorWindow::openNewScriptDialog(SceneProject* sceneProject, co
             ScriptEntry entry;
             entry.type = type;
             entry.enabled = true;
-            if (type == ScriptType::CPP) {
-                entry.headerPath = FileUtils::pathToGenericUtf8(headerPath);
-                entry.path = FileUtils::pathToGenericUtf8(sourcePath);
-                entry.className = name;
-            } else if (type == ScriptType::LUA) {
-                entry.headerPath.clear();
-                entry.path = FileUtils::pathToGenericUtf8(sourcePath);
-                entry.className = name; // module (file base) name
-            }
+            if (type == ScriptType::CPP) entry.headerPath = FileUtils::pathToGenericUtf8(headerPath);
+            entry.path = FileUtils::pathToGenericUtf8(sourcePath);
+            entry.className = name;
 
             std::vector<Entity> skipped;
             std::string error;
@@ -2603,7 +2597,7 @@ void editor::InspectorWindow::attachScriptFile(SceneProject* sceneProject, const
 }
 
 bool editor::InspectorWindow::scriptOnAll(SceneProject* sceneProject, const std::vector<Entity>& entities, const ScriptCandidate& candidate) const{
-    const fs::path file = candidate.type == ScriptType::LUA ? candidate.file : candidate.source;
+    const fs::path file = candidate.type == ScriptType::CPP ? candidate.source : candidate.file;
     for (Entity entity : entities) {
         const ScriptComponent* component = sceneProject->scene->findComponent<ScriptComponent>(entity);
         if (!component) return false;
@@ -2637,7 +2631,7 @@ void editor::InspectorWindow::drawAddScriptPopup(SceneProject* sceneProject, con
         shown++;
         const bool attached = scriptOnAll(sceneProject, entities, candidate);
         const bool fits = entities.empty() || ScriptAttach::fitsEntity(candidate, sceneProject, entities[0]);
-        const std::string label = std::string(ICON_FA_FILE_CODE " ") + candidate.name + (candidate.type == ScriptType::LUA ? "  [Lua]" : "  [C++]") +
+        const std::string label = std::string(ICON_FA_FILE_CODE " ") + candidate.name + (candidate.type == ScriptType::CSHARP ? "  [C#]" : "  [C++]") +
                                   "##" + candidate.file.string();
         ImGui::BeginDisabled(attached || !fits);
         if (ImGui::Selectable(label.c_str(), false)) {
@@ -12624,6 +12618,8 @@ void editor::InspectorWindow::drawScriptComponent(ComponentType cpType, ScenePro
             typeLabel = " [C++]";
         } else if (script.type == ScriptType::LUA) {
             typeLabel = " [Lua]";
+        } else if (script.type == ScriptType::CSHARP) {
+            typeLabel = " [C#]";
         }
 
         const float indentation = 10.0f;
@@ -12823,7 +12819,7 @@ void editor::InspectorWindow::drawScriptComponent(ComponentType cpType, ScenePro
                 ImGui::OpenPopup(("Edit Script##" + std::to_string(scriptIdx)).c_str());
             }
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip(script.type == ScriptType::LUA ? "Edit script details: source file"
+                ImGui::SetTooltip(script.type != ScriptType::CPP ? "Edit script details: source file"
                                                                  : "Edit script details: class name, header and source files");
             }
 
@@ -12869,8 +12865,8 @@ void editor::InspectorWindow::drawScriptComponent(ComponentType cpType, ScenePro
                 } else {
                     propertyHeader("Class Name", secondColSize);
                     if (ImGui::InputText("##new_name", nameBuffer, sizeof(nameBuffer),
-                            ImGuiInputTextFlags_CallbackCharFilter,
-                            ScriptCreateDialog::classNameCharFilter)) {
+                            script.type == ScriptType::CSHARP ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_CallbackCharFilter,
+                            script.type == ScriptType::CSHARP ? nullptr : ScriptCreateDialog::classNameCharFilter)) {
                         // Edit happening
                     }
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
@@ -12883,7 +12879,7 @@ void editor::InspectorWindow::drawScriptComponent(ComponentType cpType, ScenePro
                 float btnSpacing = ImGui::GetStyle().ItemSpacing.x;
 
                 // Header Path
-                if (script.type != ScriptType::LUA) {
+                if (script.type == ScriptType::CPP) {
                     propertyHeader("Header File", secondColSize);
                     ImGui::SetNextItemWidth(secondColSize - openBtnWidth - clearBtnWidth - btnSpacing * 2.0f);
 
@@ -12961,11 +12957,11 @@ void editor::InspectorWindow::drawScriptComponent(ComponentType cpType, ScenePro
                         std::filesystem::path p(selected);
                         const bool validType = script.type == ScriptType::LUA
                             ? Util::isLuaFile(p.string())
-                            : Util::isSourceFile(p.string());
+                            : script.type == ScriptType::CSHARP ? Util::isCSharpFile(p.string()) : Util::isSourceFile(p.string());
                         if (!validType) {
                             Backend::getApp().registerAlert("Error", script.type == ScriptType::LUA
                                 ? "Select a Lua script file."
-                                : "Select a C++ source file.");
+                                : script.type == ScriptType::CSHARP ? "Select a C# source file." : "Select a C++ source file.");
                         } else {
                             // Lua sources are stored relative to the Lua root ("lua://")
                             if (!Util::isInsidePath(p, sourceRoot)) {
@@ -13017,7 +13013,7 @@ void editor::InspectorWindow::drawScriptComponent(ComponentType cpType, ScenePro
                     // Normalize to a valid C++ identifier - the same rule the Create
                     // Script dialog uses - since className is emitted verbatim as a
                     // class token by the code generator. Reflect it back in the field.
-                    if (!newName.empty() && script.type != ScriptType::LUA) {
+                    if (!newName.empty() && script.type == ScriptType::CPP) {
                         newName = Factory::toIdentifier(newName);
                         strncpy(nameBuffer, newName.c_str(), sizeof(nameBuffer) - 1);
                         nameBuffer[sizeof(nameBuffer) - 1] = '\0';
@@ -13029,7 +13025,7 @@ void editor::InspectorWindow::drawScriptComponent(ComponentType cpType, ScenePro
                         if (scriptIdx < newScripts.size()) {
                             newScripts[scriptIdx].className = newName;
                             newScripts[scriptIdx].path = newSource;
-                            if (script.type != ScriptType::LUA) {
+                            if (script.type == ScriptType::CPP) {
                                 newScripts[scriptIdx].headerPath = newHeader;
                                 if (newHeader.empty()) {
                                     newScripts[scriptIdx].properties.clear();

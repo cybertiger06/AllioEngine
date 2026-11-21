@@ -123,7 +123,7 @@ void publishPrepareTool(const CallPtr& call) {
     publish::PublishingConfig config;
     std::string error;
     if (!loadPublishing(project, config, error)) {
-        call->fail(error + " (its targets name each build: docs/shipping.md, or `jasperengine-editor publish init`).");
+        call->fail(error + " (its targets name each build: docs/shipping.md, or `allioengine-editor publish init`).");
         return;
     }
     publish::PrepareRequest request;
@@ -195,7 +195,7 @@ void publishSteamVdfTool(const CallPtr& call) {
     Json list = Json::array();
     for (const fs::path& depot : depots) list.push_back(FileUtils::pathToGenericUtf8(depot));
     call->ok("Wrote " + FileUtils::pathToGenericUtf8(app) + " and " + std::to_string(depots.size()) +
-                 " depot script(s). A person uploads it: jasperengine-editor publish steam-upload (SteamCMD's own login).",
+                 " depot script(s). A person uploads it: allioengine-editor publish steam-upload (SteamCMD's own login).",
              {{"app_build", FileUtils::pathToGenericUtf8(app)}, {"depot_builds", list}});
 }
 

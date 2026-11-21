@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "ScriptRuntime.h"
+#include "CSharpRuntime.h"
 #include "ScriptMessages.h"
 #include "LuaBinding.h"
 #include "ScriptScheduler.h"
@@ -189,6 +190,9 @@ namespace {
     // script's init may deactivate it: the scripts after it wait for its activation, as Unity)
     void initAll(Scene* scene, Entity entity) {
         forEachScript(scene, entity, [&](ScriptEntry& entry, size_t index) {
+            if (entry.type == ScriptType::CSHARP && !entry.instance) {
+                CSharpRuntime::create(scene, entity, entry);
+            }
             ScriptState* state = stateOf(scene, entity, entry);
             if (!state || state->initialized || state->destroyed || state->destroying) {
                 return;
@@ -247,6 +251,9 @@ namespace {
                 }
             });
             if (scene->isEntityCreated(entity)) {
+                forEachScript(scene, entity, [](ScriptEntry& entry, size_t) {
+                    if (entry.type == ScriptType::CSHARP) CSharpRuntime::release(entry);
+                });
                 ScriptMessages::notifyReceiversChanged(scene, entity);
             }
         }
@@ -350,6 +357,10 @@ void ScriptRuntime::refreshEntity(Scene* scene, Entity entity) {
         return;
     }
     ScriptMessages::notifyReceiversChanged(scene, entity);
+    if (auto* scripts = scriptsOf(scene, entity);
+        scripts && std::any_of(scripts->scripts.begin(), scripts->scripts.end(), [](const ScriptEntry& entry) {
+            return entry.type == ScriptType::CSHARP && !entry.instance;
+        })) initAll(scene, entity);
     refreshAll(scene, entity);
 }
 
@@ -423,6 +434,7 @@ void ScriptRuntime::unloadScenes(const std::vector<Scene*>& scenes) {
     }
     for (auto& [scene, entities] : unloading) {
         destroyAll(scene, entities);
+        CSharpRuntime::releaseScene(scene);
     }
 }
 
@@ -442,6 +454,7 @@ void ScriptRuntime::quitAll() {
         }
     }
     unloadScenes(scenes);
+    CSharpRuntime::endPlay();
 }
 
 void ScriptRuntime::broadcast(ScriptMessage m, const std::function<int(lua_State*)>& pushArgs,
@@ -500,6 +513,7 @@ std::vector<Scene*> ScriptRuntime::getStartedScenes() {
 }
 
 void ScriptRuntime::forgetScene(Scene* scene) {
+    CSharpRuntime::releaseScene(scene);
     startedScenes.erase(std::remove(startedScenes.begin(), startedScenes.end(), scene), startedScenes.end());
     dropQueuedStarts(scene);
     for (auto it = states.begin(); it != states.end();) {

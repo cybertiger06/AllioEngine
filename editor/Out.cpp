@@ -137,7 +137,7 @@ void Out::setLogFile(const std::filesystem::path& path) {
     options.maxBytes = kMaxLogFileSize;
     options.maxFiles = kLogFiles;
     options.showSource = fileShowsSource;
-    options.banner = std::string("\n=== JasperEngine Editor ") + JASPERENGINE_EDITOR_VERSION + " started at " + stamp + " ===\n";
+    options.banner = std::string("\n=== AllioEngine Editor ") + JASPERENGINE_EDITOR_VERSION + " started at " + stamp + " ===\n";
     auto sink = std::make_unique<RotatingFileSink>(std::move(options));
     if (!sink->isOpen()) {
         logFilePath.clear();

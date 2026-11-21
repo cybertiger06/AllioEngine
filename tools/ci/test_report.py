@@ -195,7 +195,7 @@ class BuildLogTest(unittest.TestCase):
         failures = report.parse_log(FIXTURES / "buildlogs" / "windows-editor.log", "tools/ci/windows.sh editor")
         self.assertEqual(locations(failures), ["editor/window/InspectorTerrain.cpp:412", "editor/window/InspectorTerrain.cpp:413",
                                                "editor/window/InspectorLight.cpp:7", "InspectorTerrain.cpp.obj",
-                                               "bin/jasperengine-editor.exe", "LINK"])
+                                               "bin/allioengine-editor.exe", "LINK"])
         self.assertEqual(titles(failures)[0], "error C2027: use of undefined type 'jasperengine::Transform'")
         self.assertTrue(titles(failures)[2].startswith("fatal error C1083"))
         self.assertTrue(titles(failures)[3].startswith("error LNK2019: unresolved external symbol"))

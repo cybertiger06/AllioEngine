@@ -67,7 +67,7 @@ namespace jasperengine::editor {
 
         // ---- the parts the tests and MCP reach
         // the folder a new project goes to by default: the last parent used, else
-        // ~/JasperEngine Projects
+        // ~/AllioEngine Projects
         static std::filesystem::path defaultLocation();
         // why Create is disabled for <location>/<name> ("" when it is not)
         static std::string createProblem(const std::string& name, const std::filesystem::path& location);

@@ -611,7 +611,7 @@ std::string McpServer::requestProtocolVersion(const Json& message) {
 }
 
 Json McpServer::serverInfo() {
-    return Json{{"name", SERVER_NAME}, {"title", "JasperEngine Editor"}, {"version", JASPERENGINE_EDITOR_VERSION}};
+    return Json{{"name", SERVER_NAME}, {"title", "AllioEngine Editor"}, {"version", JASPERENGINE_EDITOR_VERSION}};
 }
 
 // ---------------------------------------------------------------- transport helpers
@@ -1404,7 +1404,7 @@ void McpServer::execute(const CallPtr& call, const ToolDef& def) {
     // Checked when the call runs (changes may have been turned off while it waited), with its
     // arguments: a read-only tool may still write a file on request (screenshot save_path)
     if (call->changesGated() && !httpChangesAllowed.load() && mayChange(def, call->args())) {
-        call->fail("Changes are turned off for MCP clients over HTTP in the JasperEngine editor (MCP window: "
+        call->fail("Changes are turned off for MCP clients over HTTP in the AllioEngine editor (MCP window: "
                    "\"Allow changes\" is off), so only the read-only tools run, without arguments that write "
                    "files, and this " + def.name + " call changes the project. Ask the user to allow changes, "
                    "then list the tools again.");

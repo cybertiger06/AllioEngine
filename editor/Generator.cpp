@@ -565,7 +565,7 @@ std::string editor::Generator::getPlatformCMakeConfig(bool vsyncEnabled, const W
     content += "    # version control ignores; -DJASPERENGINE_SHADER_PATH=<dir> overrides it.\n";
     content += "    include(${INTERNAL_DIR}/LocalPaths.cmake OPTIONAL)\n";
     content += "    if(NOT JASPERENGINE_SHADER_PATH)\n";
-    content += "        message(FATAL_ERROR \"JASPERENGINE_SHADER_PATH is not set and ${INTERNAL_DIR}/LocalPaths.cmake is missing. Open this project in JasperEngine Editor once to regenerate it, or configure with -DJASPERENGINE_SHADER_PATH=<shader cache directory>.\")\n";
+    content += "        message(FATAL_ERROR \"JASPERENGINE_SHADER_PATH is not set and ${INTERNAL_DIR}/LocalPaths.cmake is missing. Open this project in AllioEngine Editor once to regenerate it, or configure with -DJASPERENGINE_SHADER_PATH=<shader cache directory>.\")\n";
     content += "    endif()\n";
     content += "    add_definitions(\"-DJASPERENGINE_SHADER_PATH=\\\"${JASPERENGINE_SHADER_PATH}\\\"\")\n";
     content += "\n";
@@ -717,7 +717,7 @@ std::string editor::Generator::buildInitSceneScriptsSource(const std::vector<Sce
         sourceContent += "    jasperengine::ScriptComponent* scriptComp = scene->findComponent<jasperengine::ScriptComponent>(entity);\n";
         sourceContent += "    for (size_t s = 0; scriptComp && s < scriptComp->scripts.size(); s++) {\n";
         sourceContent += "        const jasperengine::ScriptEntry& scriptEntry = scriptComp->scripts[s];\n";
-        sourceContent += "        if (scriptEntry.type == ScriptType::LUA || scriptEntry.instance)\n";
+        sourceContent += "        if (scriptEntry.type != ScriptType::CPP || scriptEntry.instance)\n";
         sourceContent += "            continue;\n";
         sourceContent += "\n";
         sourceContent += "        const std::string className = scriptEntry.className;\n";
@@ -750,7 +750,7 @@ std::string editor::Generator::buildInitSceneScriptsSource(const std::vector<Sce
         sourceContent += "        return;\n";
         sourceContent += "    {\n";
         sourceContent += "        for (auto& scriptEntry : scriptCompPtr->scripts) {\n";
-        sourceContent += "            if (scriptEntry.type == ScriptType::LUA || !scriptEntry.instance) \n";
+        sourceContent += "            if (scriptEntry.type != ScriptType::CPP || !scriptEntry.instance) \n";
         sourceContent += "                continue; \n";
         // bound already (a GameObject a script instantiated while the scene started)
         sourceContent += "            bool bound = false;\n";
@@ -794,7 +794,7 @@ std::string editor::Generator::buildInitSceneScriptsSource(const std::vector<Sce
                     sourceContent += "                                jasperengine::ScriptComponent* targetScriptComp = targetScene->findComponent<jasperengine::ScriptComponent>(targetEntity);\n";
                     sourceContent += "                                if (targetScriptComp) {\n";
                     sourceContent += "                                    for (auto& targetScript : targetScriptComp->scripts) {\n";
-                    sourceContent += "                                        if (targetScript.type != ScriptType::LUA) {\n";
+                    sourceContent += "                                        if (targetScript.type == ScriptType::CPP) {\n";
                     sourceContent += "                                            if (targetScript.className == \"" + prop.ptrTypeName + "\" && targetScript.instance) {\n";
                     sourceContent += "                                                instancePtr = targetScript.instance;\n";
                     sourceContent += "                                                #ifdef JASPERENGINE_EDITOR_PLUGIN\n";
@@ -904,7 +904,7 @@ std::string editor::Generator::buildInitSceneScriptsSource(const std::vector<Sce
         sourceContent += "        jasperengine::ScriptComponent* scriptComp = to->isEntityCreated(newEntities[i]) ? to->findComponent<jasperengine::ScriptComponent>(newEntities[i]) : nullptr;\n";
         sourceContent += "        if (!scriptComp) continue;\n";
         sourceContent += "        for (auto& scriptEntry : scriptComp->scripts) {\n";
-        sourceContent += "            if (scriptEntry.type == ScriptType::LUA || !scriptEntry.instance) continue;\n";
+        sourceContent += "            if (scriptEntry.type != ScriptType::CPP || !scriptEntry.instance) continue;\n";
         for (const auto& s : scriptFiles) {
             sourceContent += "            if (scriptEntry.className == \"" + s.className + "\") {\n";
             sourceContent += "                jasperengine::rebindScriptObject(static_cast<" + s.className + "*>(scriptEntry.instance), to, newEntities[i]);\n";
@@ -941,7 +941,7 @@ std::string editor::Generator::buildCleanupSceneScriptsSource(const std::vector<
         sourceContent += "static void deleteCppScripts(jasperengine::ScriptComponent& scriptComp) {\n";
         sourceContent += "    {\n";
         sourceContent += "        for (auto& scriptEntry : scriptComp.scripts) {\n";
-        sourceContent += "            if (scriptEntry.type == ScriptType::LUA) continue;\n";
+        sourceContent += "            if (scriptEntry.type != ScriptType::CPP) continue;\n";
         sourceContent += "\n";
         sourceContent += "            if (scriptEntry.instance) {\n";
         for (const auto& s : scriptFiles) {
@@ -1101,14 +1101,14 @@ std::string editor::Generator::getEditorPluginAbiCheck() {
     cmakeContent += "if(JASPERENGINE_EDITOR_PLUGIN)\n";
 #if defined(__MINGW32__)
     cmakeContent += "    if(NOT WIN32 OR NOT MINGW OR MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL \"MSVC\")\n";
-    cmakeContent += "        message(FATAL_ERROR \"This JasperEngine Editor requires MinGW/GNU C++ plugins. Use the same MinGW toolchain that built the editor and engine.\")\n";
+    cmakeContent += "        message(FATAL_ERROR \"This AllioEngine Editor requires MinGW/GNU C++ plugins. Use the same MinGW toolchain that built the editor and engine.\")\n";
 #else
     cmakeContent += "    if(NOT WIN32 OR NOT (MSVC OR CMAKE_CXX_SIMULATE_ID STREQUAL \"MSVC\"))\n";
-    cmakeContent += "        message(FATAL_ERROR \"This JasperEngine Editor requires MSVC-compatible C++ plugins. MSYS2/MinGW GCC cannot link its engine library. Select an MSVC-compatible compiler in Preferences > External Tools, or rebuild the editor and engine with your MinGW toolchain.\")\n";
+    cmakeContent += "        message(FATAL_ERROR \"This AllioEngine Editor requires MSVC-compatible C++ plugins. MSYS2/MinGW GCC cannot link its engine library. Select an MSVC-compatible compiler in Preferences > External Tools, or rebuild the editor and engine with your MinGW toolchain.\")\n";
 #endif
     cmakeContent += "    endif()\n";
     cmakeContent += "    if(NOT CMAKE_SIZEOF_VOID_P EQUAL " + std::to_string(sizeof(void*)) + ")\n";
-    cmakeContent += "        message(FATAL_ERROR \"C++ plugins must match this JasperEngine Editor's " + std::to_string(sizeof(void*) * 8) + "-bit architecture. Select a matching compiler in Preferences > External Tools.\")\n";
+    cmakeContent += "        message(FATAL_ERROR \"C++ plugins must match this AllioEngine Editor's " + std::to_string(sizeof(void*) * 8) + "-bit architecture. Select a matching compiler in Preferences > External Tools.\")\n";
     cmakeContent += "    endif()\n";
     cmakeContent += "endif()\n\n";
 #endif
@@ -1126,7 +1126,7 @@ std::string editor::Generator::getToolchainFloorCheck() {
     cmakeContent += "set(JASPERENGINE_CXX_FLOOR_MSVC " JASPERENGINE_CXX_FLOOR_MSVC ")\n";
     cmakeContent += "set(JASPERENGINE_CXX_FLOOR \"${JASPERENGINE_CXX_FLOOR_${CMAKE_CXX_COMPILER_ID}}\")\n";
     cmakeContent += "if(JASPERENGINE_CXX_FLOOR AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS JASPERENGINE_CXX_FLOOR)\n";
-    cmakeContent += "    message(FATAL_ERROR \"JasperEngine requires C++20: the ${CMAKE_CXX_COMPILER_ID} compiler ${CMAKE_CXX_COMPILER_VERSION} is older than \"\n";
+    cmakeContent += "    message(FATAL_ERROR \"AllioEngine requires C++20: the ${CMAKE_CXX_COMPILER_ID} compiler ${CMAKE_CXX_COMPILER_VERSION} is older than \"\n";
     cmakeContent += "        \"the supported minimum ${CMAKE_CXX_COMPILER_ID} ${JASPERENGINE_CXX_FLOOR}. Update it, or choose another compiler in \"\n";
     cmakeContent += "        \"Preferences > External Tools.\")\n";
     cmakeContent += "endif()\n\n";
@@ -1260,7 +1260,7 @@ void editor::Generator::writeSourceFiles(const fs::path& projectPath, const fs::
     }
 
     std::string cmakeContent;
-    cmakeContent += "# This file is auto-generated by JasperEngine Editor. Do not edit manually.\n\n";
+    cmakeContent += "# This file is auto-generated by AllioEngine Editor. Do not edit manually.\n\n";
     cmakeContent += "cmake_minimum_required(VERSION 3.20)\n";
     cmakeContent += "project(" + libName + ")\n\n";
     cmakeContent += "# Editor-resolved parallel build job limit, supplied via -D on every editor\n";
@@ -1284,8 +1284,8 @@ void editor::Generator::writeSourceFiles(const fs::path& projectPath, const fs::
     cmakeContent += "# also writes one for clangd in ${INTERNAL_DIR}/clangd, see .clangd)\n";
     cmakeContent += "set(CMAKE_EXPORT_COMPILE_COMMANDS ON)\n\n";
 
-    cmakeContent += "# Build mode: when ON, build as JasperEngine Editor plugin (shared library)\n";
-    cmakeContent += "option(JASPERENGINE_EDITOR_PLUGIN \"Build as JasperEngine Editor plugin\" OFF)\n";
+    cmakeContent += "# Build mode: when ON, build as AllioEngine Editor plugin (shared library)\n";
+    cmakeContent += "option(JASPERENGINE_EDITOR_PLUGIN \"Build as AllioEngine Editor plugin\" OFF)\n";
 
     // Both modes link the editor's engine library, which always has both physics backends.
     // Jolt's configuration changes its class layouts, so it has to match the engine's.
@@ -1355,7 +1355,7 @@ void editor::Generator::writeSourceFiles(const fs::path& projectPath, const fs::
     }
     cmakeContent += ")\n\n";
 
-    cmakeContent += "# libjasperengine is searched in JASPERENGINE_LIB_DIR; by default it points to the JasperEngine Editor\n";
+    cmakeContent += "# libjasperengine is searched in JASPERENGINE_LIB_DIR; by default it points to the AllioEngine Editor\n";
     cmakeContent += "# executable directory, which differs per machine and so comes from LocalPaths.cmake.\n";
     cmakeContent += "include(${INTERNAL_DIR}/LocalPaths.cmake OPTIONAL)\n";
     cmakeContent += "if(NOT DEFINED JASPERENGINE_LIB_DIR OR JASPERENGINE_LIB_DIR STREQUAL \"\")\n";
@@ -1376,7 +1376,7 @@ void editor::Generator::writeSourceFiles(const fs::path& projectPath, const fs::
     cmakeContent += "if((JASPERENGINE_LIB MATCHES \"\\\\.a$\" AND NOT JASPERENGINE_LIB MATCHES \"\\\\.dll\\\\.a$\") OR\n";
     cmakeContent += "   (WIN32 AND NOT EXISTS \"${JASPERENGINE_LIB_DIR}/jasperengine.dll\" AND NOT EXISTS \"${JASPERENGINE_LIB_DIR}/libjasperengine.dll\"))\n";
     cmakeContent += "    message(FATAL_ERROR \"${JASPERENGINE_LIB} is not an editor engine library (a shared one): \"\n";
-    cmakeContent += "        \"JASPERENGINE_LIB_DIR must name the folder of a JasperEngine Editor and its engine library.\")\n";
+    cmakeContent += "        \"JASPERENGINE_LIB_DIR must name the folder of a AllioEngine Editor and its engine library.\")\n";
     cmakeContent += "endif()\n\n";
     cmakeContent += "target_link_libraries(" + libName + " PRIVATE ${JASPERENGINE_LIB} ${PLATFORM_LIBS})\n";
     // macOS: the Objective-C native plugins run in the Play library and desktop builds too
@@ -1461,7 +1461,7 @@ void editor::Generator::writeSourceFiles(const fs::path& projectPath, const fs::
 
     // Build C++ source content
     std::string sourceContent;
-    sourceContent += "// This file is auto-generated by JasperEngine Editor. Do not edit manually.\n\n";
+    sourceContent += "// This file is auto-generated by AllioEngine Editor. Do not edit manually.\n\n";
     sourceContent += "// This file binds scene script metadata to compiled C++ and Lua scripts for the current build configuration.\n\n";
     // the engine build the library is made for (the toolchain fingerprint's engine ABI hash)
     sourceContent += "#define JASPERENGINE_ABI_VERSION \"" + std::string(editorAbiVersion()) + "\"\n";
@@ -1494,7 +1494,7 @@ void editor::Generator::writeSourceFiles(const fs::path& projectPath, const fs::
     // Everything that would otherwise name this machine in CMakeLists.txt, so that
     // file is byte-identical for the whole team
     std::string localPathsContent;
-    localPathsContent += "# This file is auto-generated by JasperEngine Editor. Do not edit manually.\n";
+    localPathsContent += "# This file is auto-generated by AllioEngine Editor. Do not edit manually.\n";
     localPathsContent += "# Paths that belong to this machine only, so that CMakeLists.txt does not have\n";
     localPathsContent += "# to. Version control ignores .jasperengine/; the editor rewrites this on every build.\n\n";
     localPathsContent += "if(NOT JASPERENGINE_SHADER_PATH)\n";
@@ -1606,7 +1606,7 @@ std::string luaScriptStub(const std::string& className, const std::string& relPa
                           const std::set<std::string>& scriptClasses) {
     std::string out;
     out += "---@meta _\n";
-    out += "-- Generated by JasperEngine Editor from the properties of " + relPath + ". Do not edit: rewritten\n";
+    out += "-- Generated by AllioEngine Editor from the properties of " + relPath + ". Do not edit: rewritten\n";
     out += "-- when the script changes. Declare the module in the script to type self:\n";
     out += "--   ---@class " + className + " : ScriptInstance\n";
     out += "--   local " + className + " = { properties = { ... } }\n\n";
@@ -1727,22 +1727,24 @@ void editor::Generator::writeAgentsFile(const fs::path& projectPath, const fs::p
     const std::string api = engineApiRelativePath.generic_string();
     const std::string internal = relativeInternalPath.generic_string();
     std::string agentsContent;
-    agentsContent += "# JasperEngine Project Context\n\n";
-    agentsContent += "Made with JasperEngine Editor version `" JASPERENGINE_EDITOR_VERSION "`.\n\n";
+    agentsContent += "# AllioEngine Project Context\n\n";
+    agentsContent += "Made with AllioEngine Editor version `" JASPERENGINE_EDITOR_VERSION "`.\n\n";
     agentsContent += "## Working with the editor (MCP)\n\n";
     agentsContent += "Edit scenes, prefabs, UI and project settings, and playtest, with the editor's MCP tools, never by hand-editing "
-                     "`*.scene`, `*.prefab` or `project.yaml` (the open editor overwrites them). Server: `jasperengine-editor mcp "
+                     "`*.scene`, `*.prefab` or `project.yaml` (the open editor overwrites them). Server: `allioengine-editor mcp "
                      "--project <this directory>` (stdio), or an open editor over HTTP (Window > MCP: `http://127.0.0.1:47615/mcp` and "
                      "the bearer token it copies); its instructions and `jasper://docs/...` explain the tools. From a shell, "
-                     "`jasperengine-editor call <tool> [--flags]` runs any of them (`call <tool> --help`: its parameters).\n\n";
+                     "`allioengine-editor call <tool> [--flags]` runs any of them (`call <tool> --help`: its parameters).\n\n";
     agentsContent += "- Scripts, shaders and other text files: edit them on disk; the editor reloads them before the next tool "
                      "call and reports problems in `external_changes`.\n";
-    agentsContent += "- API: Lua stubs in `" + api + "/lua/` (`.luarc.json`; a script starts `---@class <FileName> : ScriptInstance`), "
-                     "C++ headers in `" + api + "/` (`.clangd`). Read them first.\n";
+    agentsContent += "- Gameplay scripts use C#. Create and attach a .cs file with create_script (kind csharp) or Inspector > Add Script. "
+                     "Derive the class from AllioEngine.Behaviour. Play builds the project with the .NET 10 SDK. "
+                     "See jasper://docs/csharp-scripting for callbacks, fields and the supported desktop targets.\n";
+    agentsContent += "- Legacy Lua scripts use stubs in " + api + "/lua/ and .luarc.json. Native C++ scripts use headers in " + api + "/ and .clangd.\n";
     agentsContent += "- Sound files: never script or download audio. `tool_groups` {\"enable\": [\"audio\"]}, then `generate_sound` "
                      "(a placeholder), `search_sounds` (built-in clips), `analyze_audio` (measure) or `edit_sound_event` (clips that vary: "
                      "footsteps, hits).\n";
-    agentsContent += "- Checks without the editor: `jasperengine-editor check --project . [--files <paths...>] [--cpp] [--ui]` (exit 1 on "
+    agentsContent += "- Checks without the editor: `allioengine-editor check --project . [--files <paths...>] [--cpp] [--ui]` (exit 1 on "
                      "errors); as a hook after every edit: `check --project <this directory> --hook`.\n";
     agentsContent += "- Models ship cooked (settings in their `.meta`): `inspect_models` finds costly ones, `check_render_budgets` checks "
                      "`quality.render_budgets` (tool group `meshes`).\n";
@@ -1753,9 +1755,9 @@ void editor::Generator::writeAgentsFile(const fs::path& projectPath, const fs::p
                      "`play` it (`read_console`, `screenshot`), then `build_project` for each target this computer can build. Name any "
                      "you could not (iOS needs a Mac).\n\n";
     agentsContent += "## HTML/CSS UI\n\n";
-    agentsContent += "Standard HTML and CSS with Lua logic (no JavaScript), one UI Document per GameObject (`create_ui_document`), under "
-                     "`assets/ui/`; `check --ui` reports what the engine drops or rewrites. Supported CSS: `jasper://docs/html-ui-support`; "
-                     "guide: `jasper://docs/html-ui`; examples: `" + api + "/html-ui-examples/`.\n\n";
+    agentsContent += "Use create_ui_document for an HTML/CSS document under assets/ui/ and attach a C# Behaviour to the same GameObject. "
+                     "Override OnClick(string elementId) to handle a click by HTML id. See jasper://docs/csharp-scripting and "
+                     "jasper://docs/html-ui-support. The legacy UI examples in " + api + "/html-ui-examples/ include optional Lua handlers.\n\n";
     agentsContent += "## Source\n\n";
     agentsContent += std::string("Engine and editor: ") + REPOSITORY_URL + " at the editor version above; its `editor/` "
                      "defines the `.scene`, `.prefab` and `project.yaml` formats.\n\n";
@@ -2084,7 +2086,7 @@ void writeCompileDatabase(const fs::path& projectPath, const fs::path& projectIn
 
     const fs::path anchor = dbDir / "engine_api.cpp";
     FileUtils::writeIfChanged(anchor,
-        "// Generated by JasperEngine Editor: makes clangd index the engine API of this project.\n"
+        "// Generated by AllioEngine Editor: makes clangd index the engine API of this project.\n"
         "#include \"JasperEngine.h\"\n");
 
     std::vector<std::string> sources;
@@ -2346,7 +2348,7 @@ void editor::Generator::configure(const std::vector<editor::SceneBuildInfo>& sce
 
     // Build main.cpp content
     std::string mainContent;
-    mainContent += "// This file is auto-generated by JasperEngine Editor. Do not edit manually.\n\n";
+    mainContent += "// This file is auto-generated by AllioEngine Editor. Do not edit manually.\n\n";
     mainContent += "#include \"JasperEngine.h\"\n";
     if (!voxelSettingsCode.empty()) mainContent += "#if JASPERENGINE_VOXEL\n#include \"subsystem/VoxelSystem.h\"\n#endif\n";
     if (transitionDefaults != jasperengine::pixelart::TransitionDefaults())

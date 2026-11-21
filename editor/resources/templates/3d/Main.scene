@@ -416,8 +416,8 @@ entities:
         windingOrder: ccw
       script:
         scripts:
-          - type: lua
-            path: scripts/Rotator.lua
+          - type: csharp
+            path: scripts/Rotator.cs
             pathGuid: 0d793650a7ad4cf4c7c35b95167c75a4
             className: Rotator
             enabled: true

@@ -153,7 +153,7 @@ void ScriptStatusBadge::drawPopover(){
 
     const ImVec4 luaColor = state.lua == LuaScriptState::Error ? RED : state.lua == LuaScriptState::Reloading ? AMBER : GREEN;
     const char* luaState = state.lua == LuaScriptState::Error ? "Error" : state.lua == LuaScriptState::Reloading ? "Reloading" : "OK";
-    row("Lua", luaState, luaColor, state.luaRow, project);
+    row("Legacy Lua", luaState, luaColor, state.luaRow, project);
 
     auto cppLook = [](CppScriptState cpp, const ScriptStatusRow& data) -> std::pair<const char*, ImVec4> {
         switch (cpp) {

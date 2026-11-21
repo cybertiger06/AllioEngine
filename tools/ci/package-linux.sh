@@ -6,13 +6,13 @@
 #
 #   tools/ci/package-linux.sh [--owner <github owner>] [--no-check] <version>
 #
-#   dist/JasperEngine-<version>-linux-x86_64.AppImage   the install under usr/ of an AppDir, with this
+#   dist/AllioEngine-<version>-linux-x86_64.AppImage   the install under usr/ of an AppDir, with this
 #                                                       image's libstdc++ and libgcc_s (taken over only
 #                                                       where the host's are older) and an AppRun that
 #                                                       turns an older glibc away with a message
-#   dist/JasperEngine-<version>-linux-x86_64.AppImage.zsync  its delta-update file; the AppImage embeds
-#                                                       gh-releases-zsync|<owner>|JasperEngine|latest|...
-#   dist/JasperEngine-<version>-linux-x86_64.zip        the install's bin/
+#   dist/AllioEngine-<version>-linux-x86_64.AppImage.zsync  its delta-update file; the AppImage embeds
+#                                                       gh-releases-zsync|<owner>|AllioEngine|latest|...
+#   dist/AllioEngine-<version>-linux-x86_64.zip        the install's bin/
 #
 # owner: --owner, else GITHUB_REPOSITORY_OWNER, else the owner in `git remote get-url origin`. Then,
 # unless --no-check, the AppImage's editor runs `call --help`, and `call --project <scratch copy of
@@ -61,20 +61,20 @@ APPIMAGETOOL_SHA256=ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb38
 MESSAGE_GLIBC=2.35
 
 package() {
-    [[ -x "$INSTALL/bin/jasperengine-editor" ]] || { echo "no editor in $INSTALL: run tools/build.sh linux first" >&2; exit 1; }
-    grep -aqF -- "$VERSION" "$INSTALL/bin/jasperengine-editor" \
-        || echo "::warning::$INSTALL/bin/jasperengine-editor does not carry the version string $VERSION: it was stamped with another one"
-    local appimage="JasperEngine-$VERSION-linux-x86_64.AppImage"
+    [[ -x "$INSTALL/bin/allioengine-editor" ]] || { echo "no editor in $INSTALL: run tools/build.sh linux first" >&2; exit 1; }
+    grep -aqF -- "$VERSION" "$INSTALL/bin/allioengine-editor" \
+        || echo "::warning::$INSTALL/bin/allioengine-editor does not carry the version string $VERSION: it was stamped with another one"
+    local appimage="AllioEngine-$VERSION-linux-x86_64.AppImage"
     rm -rf "$WORK" && mkdir -p "$WORK" dist
-    rm -f "dist/$appimage" "dist/$appimage.zsync" "dist/JasperEngine-$VERSION-linux-x86_64.zip"
+    rm -f "dist/$appimage" "dist/$appimage.zsync" "dist/AllioEngine-$VERSION-linux-x86_64.zip"
 
     # The AppDir is the same install tree under usr/: $ORIGIN and engine/ already resolve relative to
     # the binary, so nothing moves
     local appdir="$WORK/AppDir"
     mkdir -p "$appdir"
     cp -a "$INSTALL" "$appdir/usr"
-    cp editor/resources/linux/jasperengine-editor.desktop "$appdir/"
-    cp editor/resources/icons/linux/jasperengine-editor-512.png "$appdir/jasperengine-editor.png"
+    cp editor/resources/linux/allioengine-editor.desktop "$appdir/"
+    cp editor/resources/icons/linux/allioengine-editor-512.png "$appdir/allioengine-editor.png"
 
     # 22.04's libstdc++ is newer than older targets carry, and JASPERENGINE_SHARED rules out
     # -static-libstdc++: the editor and libjasperengine.so would each get their own runtime
@@ -87,7 +87,7 @@ package() {
     # glibc cannot ride along the way libstdc++ can, so AppRun turns anything older than these
     # binaries were linked against away with a message
     local floor
-    floor="$(objdump -T "$appdir/usr/bin/jasperengine-editor" "$appdir/usr/bin/libjasperengine.so" \
+    floor="$(objdump -T "$appdir/usr/bin/allioengine-editor" "$appdir/usr/bin/libjasperengine.so" \
         "$appdir/usr/lib/libstdc++.so.6" "$appdir/usr/lib/libgcc_s.so.1" \
         | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -uV | tail -1)"
     [[ -n "$floor" ]] || { echo "no GLIBC_ symbol versions in the binaries" >&2; exit 1; }
@@ -114,11 +114,11 @@ package() {
     # ARCH is guessed from ELF files otherwise, and a container has no FUSE. -u embeds the update
     # information and writes the .zsync (into the working directory) for AppImageUpdate and Gear Lever
     (cd dist && ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$ROOT/$tool" "$ROOT/$appdir" \
-        -u "gh-releases-zsync|$OWNER|JasperEngine|latest|JasperEngine-*-x86_64.AppImage.zsync" "$appimage")
+        -u "gh-releases-zsync|$OWNER|AllioEngine|latest|AllioEngine-*-x86_64.AppImage.zsync" "$appimage")
     # (-u embeds the update information even when zsyncmake did not run)
     test -s "dist/$appimage.zsync" || { echo "appimagetool wrote no dist/$appimage.zsync" >&2; exit 1; }
 
-    ci_zip_dir "$INSTALL/bin" "dist/JasperEngine-$VERSION-linux-x86_64.zip"
+    ci_zip_dir "$INSTALL/bin" "dist/AllioEngine-$VERSION-linux-x86_64.zip"
     ls -la dist
     [[ $CHECK == 1 ]] && launch_check "dist/$appimage"
     return 0
@@ -139,7 +139,7 @@ glibcxx_minor() {
 # Only take over where the host's runtime is older: doing it everywhere would
 # hand the host's Mesa an older libstdc++ than it was built against. Ask the
 # loader where that copy is rather than guess at distro layouts.
-host_lib="$(LD_TRACE_LOADED_OBJECTS=1 "$HERE/usr/bin/jasperengine-editor" 2>/dev/null \
+host_lib="$(LD_TRACE_LOADED_OBJECTS=1 "$HERE/usr/bin/allioengine-editor" 2>/dev/null \
   | sed -n 's/.*libstdc++\.so\.6 => \([^ ]*\).*/\1/p')"
 bundled="$(glibcxx_minor "$HERE/usr/lib/libstdc++.so.6")"
 host="$(glibcxx_minor "$host_lib")"
@@ -151,7 +151,7 @@ fi
 glibc="$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $NF}')"
 if [ -n "$glibc" ] && [ "$glibc" != "@GLIBC_FLOOR@" ] \
   && [ "$(printf '%s\n%s\n' "$glibc" "@GLIBC_FLOOR@" | sort -V | head -1)" = "$glibc" ]; then
-  msg="JasperEngine needs glibc @GLIBC_FLOOR@ or newer, and this system has $glibc.
+  msg="AllioEngine needs glibc @GLIBC_FLOOR@ or newer, and this system has $glibc.
 Ubuntu 22.04 and Debian 12 are the oldest releases it runs on; older ones
 need a build from source."
   printf '%s\n' "$msg" >&2
@@ -165,7 +165,7 @@ need a build from source."
   exit 1
 fi
 
-exec "$HERE/usr/bin/jasperengine-editor" "$@"
+exec "$HERE/usr/bin/allioengine-editor" "$@"
 APPRUN
 }
 

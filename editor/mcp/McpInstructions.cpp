@@ -27,9 +27,9 @@ namespace {
 // and the pointer to the whole guide come first; tool_budget.py --check gates it ("client_cut").
 const char* headInstructions() {
     return
-R"JE(# JasperEngine editor (MCP)
+R"JE(# AllioEngine editor (MCP)
 
-You drive a running JasperEngine editor (Unity-style: Hierarchy, Inspector, Console, Scene and Game
+You drive a running AllioEngine editor (Unity-style: Hierarchy, Inspector, Console, Scene and Game
 views; Lua or C++ scripts). Each tool edit is one undoable command, live to a human watching.
 Area references: jasper://docs/<area> (the list: jasper://docs).
 Text cut before "## Other areas"? read_file jasper://guide.
@@ -80,8 +80,13 @@ A .scene is in the project once project.yaml lists it (edit_build_scenes).
 Edit results carry `undo` {id, name}. undo/redo scope "timeline" = the human's Ctrl+Z; expect_top_id
 undoes only your own last step. Play-time edits roll back at Stop (get_play_changes).
 
-## Lua scripts
-Read jasper://docs/lua-scripting before your first script. A script returns a module table
+## Gameplay scripts
+Use C# for new scripts. create_script kind=csharp creates a .cs file and can attach it to an entity.
+Derive from AllioEngine.Behaviour and override Start(), Update(float deltaTime) or OnClick(string elementId).
+Play compiles the project using the .NET 10 SDK. Read jasper://docs/csharp-scripting for the managed API.
+
+## Existing Lua scripts
+For a legacy Lua script, read jasper://docs/lua-scripting. A script returns a module table
 (`---@class Name : ScriptInstance`, Name = the file name); properties = { {name, displayName, type,
 default} } are read as self.<name>. self.entity is a numeric id, NOT an object: wrap it
 (GameObject(self.scene, self.entity), Sprite(...)). RegisterEngineEvent(self, "onUpdate") in init().

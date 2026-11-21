@@ -14,7 +14,7 @@ namespace jasperengine::editor {
 
     enum class AssetCreateKind : uint8_t {
         Folder,
-        LuaScript,
+        CSharpScript,
         CppScript,
         CppSource,
         CppHeader,
@@ -40,7 +40,7 @@ namespace jasperengine::editor {
 
     struct AssetCreateItem {
         AssetCreateKind kind;
-        const char* label;        // "Lua Script" (Unity's names, no "Create")
+        const char* label;        // "C# Script" (Unity's names, no "Create")
         const char* icon;
         const char* commandId;    // the catalog command of Assets > Create
         bool separatorBefore;

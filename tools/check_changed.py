@@ -1062,7 +1062,7 @@ def main(argv: list[str], root: Path | None = None) -> int:
         runner.steps.append(("MCP tests", "SKIP (--no-mcp)", 0.0))
         runner.partial = True
     elif (args.keep_going or not runner.failed) and (plan.mcp_all or plan.mcp_ci or plan.mcp_files):
-        if "linux" not in plan.builds and not (ROOT / "build/linux/editor-install/bin/jasperengine-editor").exists():
+        if "linux" not in plan.builds and not (ROOT / "build/linux/editor-install/bin/allioengine-editor").exists():
             runner.run("build linux (the MCP tests' editor)", ["tools/build.sh", "linux"], dict(build_env, SKIP_ENGINE="1"))
         # (the container's CPUs, rb.sh's JOBS, for two each: LP_NUM_THREADS 2, docs/testing.md)
         cpus = int(os.environ["JOBS"]) if os.environ.get("JOBS", "").isdigit() else (os.cpu_count() or 4)

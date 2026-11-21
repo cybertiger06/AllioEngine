@@ -2081,7 +2081,7 @@ You can't hear: a Play's capture as numbers. status; arm: whether the next Play 
 
 Group: `core`
 
-Attach a script file to a GameObject (adds the Script component if needed). path: a .lua in the Lua dir, or a C++ script's .h or .cpp (pair side by side). Fails if already attached.
+Attach a script file to a GameObject (adds the Script component if needed). path: a .cs file, a legacy .lua in the Lua dir, or a C++ script's .h or .cpp (pair side by side). Fails if already attached.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -2146,15 +2146,15 @@ Build the C++ scripts without playing (Play's CMake build; the next Play is incr
 
 Group: `core`
 
-Create a script from the engine template, optionally attached to entity; then edit the file yourself. kind lua: module table in the Lua dir; cpp_script: ScriptBase subclass; cpp_subclass: subclass of the GameObject's class (e.g. Mesh), needs entity. content (Lua) or header_content + source_content (C++) replace the template.
+Create a script from the engine template, optionally attached to entity; then edit the file yourself. csharp: AllioEngine.Behaviour; cpp_script: ScriptBase; cpp_subclass: subclass of the GameObject's class (e.g. Mesh), needs entity. content (C#) or header_content + source_content (C++) replace the template.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `content` | string |  |  |
-| `directory` | string |  | Default: Lua dir, or "scripts" for C++. |
+| `directory` | string |  | Default: scripts (legacy Lua: Lua dir). |
 | `entity` | integer or string |  |  |
 | `header_content` | string |  |  |
-| `kind` | `"lua"` \| `"cpp_script"` \| `"cpp_subclass"` | yes |  |
+| `kind` | `"csharp"` \| `"cpp_script"` \| `"cpp_subclass"` \| `"lua"` | yes |  |
 | `name` | string | yes | Class/module name = file name. |
 | `overwrite` | boolean |  |  |
 | `scene` | integer or string |  |  |
@@ -4013,7 +4013,7 @@ Assert a live HTML/CSS UI document's layout: passed + each failure (element ref,
 
 Group: `core`
 
-Create a GameObject with a UI Document showing an HTML/CSS file (one scene undo step). A missing html is made from template (blank or an example) with its .css, assets and Lua (script: attached); existing files are kept unless overwrite. Returns the files and the first load's diagnostics.
+Create a GameObject with a UI Document showing an HTML/CSS file (one scene undo step). A missing html is made from template (blank or an example) with its .css and assets; existing files are kept unless overwrite. Returns the files and the first load's diagnostics.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
@@ -4023,7 +4023,7 @@ Create a GameObject with a UI Document showing an HTML/CSS file (one scene undo 
 | `parent` | integer or string |  |  |
 | `properties` | object |  | Other UI Document properties. |
 | `scene` | integer or string |  |  |
-| `script` | boolean |  | Attach the template's Lua (default: examples yes, blank no). |
+| `script` | boolean |  | Opt in to the example's legacy Lua script. |
 | `sort_order` | integer (-32768..32767) |  |  |
 | `template` | `"main_menu"` \| `"pause_menu"` \| `"hud"` \| `"inventory"` \| `"settings"` \| `"dialogue"` \| `"shop"` \| `"toasts"` \| `"loading"` \| `"video_menu"` \| `"server_browser"` \| `"chat_log"` \| `"quest_log"` \| `"blank"` |  | Default: `"blank"`. |
 

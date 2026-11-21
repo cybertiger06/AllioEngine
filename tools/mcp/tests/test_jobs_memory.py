@@ -223,7 +223,7 @@ def editor_threads(ed: Editor) -> tuple[str, list[str]]:
                 cmdline = f.read()
         except OSError:
             continue
-        if b"jasperengine-editor" not in cmdline or project not in cmdline:
+        if b"allioengine-editor" not in cmdline or project not in cmdline:
             continue
         main, names = "", []
         for task in os.listdir(f"/proc/{entry}/task"):

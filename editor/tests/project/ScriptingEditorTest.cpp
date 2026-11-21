@@ -295,6 +295,8 @@ TEST_F(ScriptingEditor, CacheRunsEachFileOnce) {
 }
 
 TEST_F(ScriptingEditor, ScriptAttachMakesEntries) {
+    scriptingWriteFile(scriptingProject()->getProjectPath() / "scripts" / "Guard.cs",
+                       "using AllioEngine; public class Guard : Behaviour { public float speed = 3f; }");
     scriptingWriteFile(lua("ai/patrol.lua"), kSpeedScript);
     scriptingWriteFile(scriptingProject()->getProjectPath() / "outside.lua", kSpeedScript);
     scriptingWriteFile(scriptingProject()->getProjectPath() / "scripts" / "Mover.h",
@@ -324,8 +326,12 @@ TEST_F(ScriptingEditor, ScriptAttachMakesEntries) {
     auto find = [&](const std::string& name) {
         return std::find_if(scripts.begin(), scripts.end(), [&](const ScriptCandidate& c) { return c.name == name; });
     };
-    ASSERT_NE(find("patrol"), scripts.end());
-    EXPECT_EQ(find("patrol")->type, ScriptType::LUA);
+    EXPECT_EQ(find("patrol"), scripts.end());
+    ASSERT_NE(find("Guard"), scripts.end());
+    ASSERT_TRUE(ScriptAttach::makeEntry(scriptingProject(), find("Guard")->file, "", entry, warnings, error)) << error;
+    EXPECT_EQ(entry.type, ScriptType::CSHARP);
+    EXPECT_EQ(entry.className, "Guard");
+    EXPECT_EQ(entry.path.str(), "scripts/Guard.cs");
     EXPECT_EQ(find("outside"), scripts.end());  // not in the Lua directory
     ASSERT_NE(find("Mover"), scripts.end());
     EXPECT_FALSE(find("Mover")->subclass);

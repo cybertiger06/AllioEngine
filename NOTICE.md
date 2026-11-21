@@ -1,5 +1,7 @@
 # Notice
 
+AllioEngine is developed by Allio Studio from [Arakuma Studio's JasperEngine](https://github.com/Arakuma-Studio/JasperEngine/tree/0fd6b8eb7c98a51d22373af19242cdefb36b40e0). Allio Studio supplied the Allio branding and the C# gameplay integration in this edition.
+
 JasperEngine is a fork of [Doriax](https://github.com/doriaxengine/doriax) by Eduardo Doria and contributors, released under the MIT License.
 
 - Fork point: Doriax `main` at commit `29348d7b4d9b03ee1f29dc184f9863f36dc12c2d` (2026-09-29), tagged `doriax-base` in this repository. `git diff doriax-base` shows every change made since.
@@ -35,6 +37,7 @@ Libraries of the engine, the editor and the tools:
 | [RmlUi](https://github.com/mikke89/RmlUi) | 6.3 (`ba95ffe8bfb6`), JasperEngine's fork | `engine/libs/rmlui/` (`LICENSE.txt`; Taffy's below, `LICENSE-taffy.txt`) | MIT | the HTML/CSS UI |
 | [glslang](https://github.com/KhronosGroup/glslang) | 15.1.0 | `engine/libs/shadercompiler/libs/glslang/` (`LICENSE.txt`) | BSD-3-Clause and the others `LICENSE.txt` lists | GLSL to SPIR-V in the shader compiler |
 | [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) | vendored (git history) | `engine/libs/shadercompiler/libs/spirv-cross/` (`LICENSE`, `LICENSES/`) | Apache-2.0 | SPIR-V to GLSL, HLSL and MSL in the shader compiler |
+| [.NET native hosting headers](https://github.com/dotnet/runtime) | .NET 10 | `engine/libs/dotnet-host/` (`LICENSE.txt`) | MIT | load CoreCLR and dispatch C# gameplay callbacks |
 | [Dear ImGui](https://github.com/ocornut/imgui) | 1.92.8 | `libs/imgui/` (`LICENSE.txt`) | MIT | the editor's user interface |
 | [Native File Dialog Extended](https://github.com/btzy/nativefiledialog-extended) | 1.3.0 | `libs/nfd/` (`LICENSE`) | zlib | the editor's file dialogs |
 | [tinyexpr](https://github.com/codeplea/tinyexpr) (Lewis Van Winkle) | upstream `7ab30db449a3` | `libs/tinyexpr/` (`LICENSE`) | zlib | the expressions of the editor's numeric fields |

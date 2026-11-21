@@ -5,6 +5,8 @@
 #include "Out.h"
 #include "FileUtils.h"
 #include <cctype>
+#include <cmath>
+#include <limits>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -340,6 +342,85 @@ std::optional<std::string> editor::ScriptParser::findScriptClassNameFromString(
     }
 
     return candidate;
+}
+
+std::optional<std::vector<ScriptProperty>> editor::ScriptParser::csharpFields(
+        const std::string& source, const std::string& className) {
+    const std::string simpleName = className.substr(className.find_last_of('.') + 1);
+    if (!isCppIdentifier(simpleName)) return std::nullopt;
+    const std::string code = removeComments(source);
+    std::string structure = code;
+    // Mask strings and character literals before counting braces or locating declarations.
+    char quote = 0;
+    for (size_t i = 0; i < structure.size(); ++i) {
+        const char c = structure[i];
+        if (quote) {
+            structure[i] = ' ';
+            if (c == '\\' && i + 1 < structure.size()) structure[++i] = ' ';
+            else if (c == quote) quote = 0;
+        } else if (c == '"' || c == '\'') {
+            quote = c;
+            structure[i] = ' ';
+        }
+    }
+    std::smatch declaration;
+    const std::regex classPattern("\\bclass\\s+@?" + simpleName + "\\b[^{};]{0,256}\\{");
+    if (!std::regex_search(structure, declaration, classPattern)) return std::nullopt;
+    // An initializer that calls code is left to .NET. Only mutable instance fields are editable.
+    static const std::regex field(R"(^\s*public\s+(bool|int|float|string)\s+@?([A-Za-z_]\w*)\s*(?:=\s*(\S(?:[^\r\n]{0,255}?\S)?))?\s*$)");
+    std::vector<ScriptProperty> fields;
+    size_t start = declaration.position() + declaration.length();
+    size_t depth = 1;
+    for (size_t i = start; i < structure.size(); ++i) {
+        if (structure[i] == '{') { ++depth; continue; }
+        if (structure[i] == '}') {
+            if (--depth == 0) return fields;
+            if (depth == 1) start = i + 1;
+            continue;
+        }
+        if (depth != 1 || structure[i] != ';') continue;
+        const size_t length = i - start;
+        const size_t begin = start;
+        start = i + 1;
+        if (length > 1024) continue;
+        const std::string member = code.substr(begin, length);
+        std::smatch match;
+        if (!std::regex_match(member, match, field)) continue;
+        const std::string type = match[1].str();
+        std::string literal = match[3].str();
+        ScriptProperty prop;
+        prop.name = prop.displayName = match[2].str();
+        if (type == "bool") {
+            if (!literal.empty() && literal != "true" && literal != "false") continue;
+            prop.type = ScriptPropertyType::Bool;
+            prop.defaultValue = literal == "true";
+        } else if (type == "string") {
+            if (literal.size() < 2 || literal.front() != '"' || literal.back() != '"') continue;
+            const std::string value = literal.substr(1, literal.size() - 2);
+            if (value.find_first_of("\\\"") != std::string::npos) continue;
+            prop.type = ScriptPropertyType::String;
+            prop.defaultValue = value;
+        } else {
+            if (literal.empty()) literal = "0";
+            if (type == "float" && (literal.back() == 'f' || literal.back() == 'F')) literal.pop_back();
+            if (literal.empty()) continue;
+            char* end = nullptr;
+            if (type == "int") {
+                const auto number = std::strtoll(literal.c_str(), &end, 10);
+                if (*end || number < std::numeric_limits<int>::min() || number > std::numeric_limits<int>::max()) continue;
+                prop.type = ScriptPropertyType::Int;
+                prop.defaultValue = static_cast<int>(number);
+            } else {
+                const float number = std::strtof(literal.c_str(), &end);
+                if (*end || !std::isfinite(number)) continue;
+                prop.type = ScriptPropertyType::Float;
+                prop.defaultValue = number;
+            }
+        }
+        prop.value = prop.defaultValue;
+        fields.push_back(std::move(prop));
+    }
+    return std::nullopt;
 }
 
 std::vector<ScriptProperty> editor::ScriptParser::parseScriptProperties(const std::filesystem::path& scriptPath) {

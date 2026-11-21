@@ -283,7 +283,7 @@ kbd svg {
   color: rgba(226, 236, 255, 0.4);
 }
 
-/* ---- Settings flyout (Lua toggles .open) ---- */
+/* ---- Settings flyout (the menu script toggles .open) ---- */
 .settings-panel {
   position: fixed;
   top: 0;

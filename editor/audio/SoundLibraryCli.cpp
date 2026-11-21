@@ -54,7 +54,7 @@ const std::vector<std::string> IMAGE_MODES = {"none", "waveform", "spectrogram",
 
 std::string commandName(const char* executableName) {
     const std::string name = executableName && *executableName ? fs::path(executableName).filename().string() : std::string();
-    return name.empty() ? std::string("jasperengine-editor") : name;
+    return name.empty() ? std::string("allioengine-editor") : name;
 }
 
 std::string format(const char* pattern, double value) {

@@ -722,7 +722,7 @@ void editor::mcp::registerMeshTools(McpRegistry& registry) {
         tool.name = "check_render_budgets";
         tool.title = "Check Render Budgets";
         tool.description = "A scene against quality.render_budgets of a platform (triangles, draw calls, mesh memory, download, from its "
-                           "geometry and cooks). Over budget is an error listing the offenders (exit 1 from jasperengine-editor call).";
+                           "geometry and cooks). Over budget is an error listing the offenders (exit 1 from allioengine-editor call).";
         tool.inputSchema = object({
             {"scene", sceneRef()},
             {"platform", withDefault(platform, "desktop")}

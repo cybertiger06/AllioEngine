@@ -190,6 +190,7 @@ namespace jasperengine::editor {
     private:
         Project* project = nullptr;
         ExportConfig config;
+        std::vector<fs::path> managedSources;
         ExportProgress progress;
         mutable std::mutex progressMutex;
         std::atomic<bool> cancelRequested{false};

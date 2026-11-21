@@ -73,6 +73,8 @@
 #include "script/LuaBinding.h"
 #include "script/ScriptScheduler.h"
 #include "script/ScriptRuntime.h"
+#include "script/CSharpRuntime.h"
+#include "StreamSchema.h"
 #include "manager/SceneManager.h"
 #include "util/EntityPath.h"
 #include "util/PlatformRules.h"
@@ -2299,7 +2301,7 @@ Json scriptStateJson(Project* project, SceneProject* sp, Entity entity, int maxD
     for (ScriptEntry& entry : component->scripts) {
         // the lifecycle (script-lifecycle 6.1): init ran, start ran, onEnable ran and no onDisable since
         const ScriptState* state = ScriptRuntime::getState(entry.instance);
-        Json item = {{"class", entry.className}, {"type", entry.type == ScriptType::LUA ? "lua" : "cpp"},
+        Json item = {{"class", entry.className}, {"type", StreamSchema::scriptType().toString(entry.type)},
                      {"enabled", entry.enabled}, {"initialized", state && state->initialized}, {"started", state && state->started},
                      {"active_and_enabled", entry.instance && entry.enabled && !(state && state->destroyed) &&
                                             sp->scene->isEntityActiveInHierarchy(entity)}};
@@ -2316,6 +2318,9 @@ Json scriptStateJson(Project* project, SceneProject* sp, Entity entity, int maxD
             lua_settop(L, top);
             item["coroutines"] = coroutinesJson(entry.instance);
             item["timers"] = timersJson(entry.cppScript ? static_cast<const void*>(entry.cppScript) : entry.instance);
+        } else if (entry.type == ScriptType::CSHARP && entry.instance) {
+            auto fields = Json::parse(CSharpRuntime::inspect(entry), nullptr, false);
+            if (fields.is_object()) item["state"] = std::move(fields);
         } else if (entry.type == ScriptType::CPP && entry.instance) {
             // C++ has no reflection: the DPROPERTY members (what the Inspector shows)
             Json fields = Json::object();
@@ -4471,8 +4476,8 @@ void registerPlayTools(McpRegistry& registry) {
         tool.name = "get_runtime_entity";
         tool.title = "Get Runtime GameObject";
         tool.description =
-            "Live values of a running GameObject (runtime-spawned too): components this frame, script state (Lua "
-            "fields, C++ DPROPERTY members; coroutines with their waits, timers), physics contacts and callbacks. "
+            "Live values of a running GameObject (runtime-spawned too): components this frame, script state (public C# "
+            "fields, Lua fields, C++ DPROPERTY members; coroutines with their waits, timers), physics contacts and callbacks. "
             "Only while playing.";
         tool.inputSchema = object({
             {"scene", runtimeScene},

@@ -437,7 +437,8 @@ void ObjectManager::destroyImmediate(Scene* scene, Entity entity) {
 namespace {
 
 // Which kinds of scripts these GameObjects have
-void scriptKinds(Scene* scene, const std::vector<Entity>& entities, bool& lua, bool& cpp) {
+bool scriptKinds(Scene* scene, const std::vector<Entity>& entities, bool& lua, bool& cpp) {
+    bool any = false;
     lua = false;
     cpp = false;
     for (Entity entity : entities) {
@@ -446,10 +447,13 @@ void scriptKinds(Scene* scene, const std::vector<Entity>& entities, bool& lua, b
         }
         if (ScriptComponent* scripts = scene->findComponent<ScriptComponent>(entity)) {
             for (const ScriptEntry& entry : scripts->scripts) {
-                (entry.type == ScriptType::LUA ? lua : cpp) = true;
+                any = true;
+                lua |= entry.type == ScriptType::LUA;
+                cpp |= entry.type == ScriptType::CPP;
             }
         }
     }
+    return any;
 }
 
 }
@@ -459,8 +463,7 @@ void ObjectManager::initializeScripts(Scene* scene, const std::vector<Entity>& e
         return;
     }
     bool lua, cpp;
-    scriptKinds(scene, entities, lua, cpp);
-    if (!lua && !cpp) {
+    if (!scriptKinds(scene, entities, lua, cpp)) {
         return;
     }
     // Lua instances first, as initScripts does for a scene, then the C++ ones, then their
@@ -481,8 +484,7 @@ void ObjectManager::cleanupScripts(Scene* scene, const std::vector<Entity>& enti
         return;
     }
     bool lua, cpp;
-    scriptKinds(scene, entities, lua, cpp);
-    if (!lua && !cpp) {
+    if (!scriptKinds(scene, entities, lua, cpp)) {
         return;
     }
     pushActiveScene(scene);

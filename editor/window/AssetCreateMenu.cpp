@@ -13,7 +13,7 @@ namespace {
 
     constexpr std::array<AssetCreateItem, 23> ITEMS = {{
         {AssetCreateKind::Folder, "Folder", ICON_FA_FOLDER_PLUS, "assets.createFolder", false, true},
-        {AssetCreateKind::LuaScript, "Lua Script", ICON_FA_FILE_CODE, "assets.createLuaScript", true, true},
+        {AssetCreateKind::CSharpScript, "C# Script", ICON_FA_FILE_CODE, "assets.createCSharpScript", true, true},
         {AssetCreateKind::CppScript, "C++ Script", ICON_FA_FILE_CODE, "assets.createCppScript", false, true},
         {AssetCreateKind::CppSource, "C++ Source File", ICON_FA_FILE_CODE, "assets.createCppSource", false, true},
         {AssetCreateKind::CppHeader, "C++ Header File", ICON_FA_FILE_CODE, "assets.createCppHeader", false, true},

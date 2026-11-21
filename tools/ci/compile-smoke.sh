@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # A Compile build of a project, the editor's Build with Method Compile (Build Settings > Build):
-# `jasperengine-editor build --method compile`, which exports the project and builds its generated
+# `allioengine-editor build --method compile`, which exports the project and builds its generated
 # CMake project with this machine's compiler (the engine modules the project needs, S34). A CLI
 # subcommand runs before the editor's backend starts, so it opens no window and needs no GPU (the
 # design's §16.4 question). The CI lanes of Windows (MSVC) and macOS (Apple Clang) run it through

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ui",
   "name": "UI",
-  "description": "A main menu in HTML and CSS with Play and Quit buttons wired in Lua, on a 1920x1080 canvas.",
+  "description": "A main menu in HTML and CSS with Play and Quit buttons wired in C#, on a 1920x1080 canvas.",
   "category": "Core",
   "order": 4,
   "accentColor": "#9B4F96",

@@ -28,7 +28,7 @@ if [[ ! -f "$PLAN_SRC" ]]; then
          "(see the fallbacks in $2/lanes.json)" >&2
     exit 1
 fi
-[[ -x build/linux/editor-install/bin/jasperengine-editor ]] \
+[[ -x build/linux/editor-install/bin/allioengine-editor ]] \
     || { echo "mcp_shard: no editor at build/linux/editor-install (tools/build.sh linux, or the editor-install artifact)" >&2; exit 1; }
 # (the image sees the checkout at /src: the plan goes inside it)
 mkdir -p build/ci-shard build/test-results

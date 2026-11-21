@@ -270,7 +270,7 @@ async def test_inventory_drag_swaps(ed: Editor):
     """AC14: in the inventory example, a send_input drag from slot 0 to slot 5 swaps the items (inspect_ui models)."""
     await ed.call("play", action="stop")
     made = await ed.call("create_scene", name="HtmlUiWidgetsInventory", type="UI")
-    inv = await ed.call("create_ui_document", scene=made["scene"]["id"], html="assets/ui/bag.html", template="inventory")
+    inv = await ed.call("create_ui_document", scene=made["scene"]["id"], html="assets/ui/bag.html", template="inventory", script=True)
     await ed.call("play", action="start", scene=made["scene"]["id"], fixed_fps=60)
     try:
         await ed.call("wait", frames=60)

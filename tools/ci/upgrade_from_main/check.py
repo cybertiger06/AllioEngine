@@ -382,7 +382,7 @@ async def run(editor: Path, fixture: Path, out: Path, tolerance: float = 0.0,
 
 async def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--editor", default=str(REPO / "build/linux/editor-install/bin/jasperengine-editor"))
+    ap.add_argument("--editor", default=str(REPO / "build/linux/editor-install/bin/allioengine-editor"))
     ap.add_argument("--fixture", type=Path, default=FIXTURE)
     ap.add_argument("--out", type=Path, default=REPO / "build/upgrade-from-main/check")
     ap.add_argument("--tolerance", type=float, default=0.0,

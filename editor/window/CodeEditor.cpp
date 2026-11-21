@@ -424,6 +424,7 @@ editor::SyntaxLanguage languageForPath(const fs::path& path) {
     std::transform(ext.begin(), ext.end(), ext.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
+    if (ext == ".cs") return editor::SyntaxLanguage::CSharp;
     if (ext == ".lua") return editor::SyntaxLanguage::Lua;
     // GLSL is close enough to reuse the C++ highlighter
     if (ext == ".c" || editor::Util::isSourceFile(ext) || editor::Util::isHeaderFile(ext) || editor::Util::isShaderFile(ext))

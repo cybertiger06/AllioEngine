@@ -5,7 +5,7 @@
 # checkout it belongs to.
 #
 #   tools/ci/windows.sh editor                     the Release editor (preset windows-msvc-release) with
-#                                                  jasperengine-editor-cmd and jasperengine-editor-tests,
+#                                                  allioengine-editor-cmd and jasperengine-editor-tests,
 #                                                  installed into instdir/ (EDITOR_TESTS=0: no tests; a
 #                                                  release editor, which package needs)
 #   tools/ci/windows.sh engine [d3d11|glcore|vulkan]  the engine sample project and jasperengine-core-tests
@@ -21,8 +21,8 @@
 #                                                  stopped and fails, googletest having no per-test one)
 #   tools/ci/windows.sh compile-smoke <project-dir> [backend]  a Compile build of the project with MSVC,
 #                                                  as Build with Method Compile makes it (tools/ci/compile-smoke.sh)
-#   tools/ci/windows.sh package <version>          dist/JasperEngine-<version>-windows-x64.zip of instdir/bin
-#   tools/ci/windows.sh check-cli [zip]            tools/ci/check-call-cli.py on jasperengine-editor-cmd.exe of
+#   tools/ci/windows.sh package <version>          dist/AllioEngine-<version>-windows-x64.zip of instdir/bin
+#   tools/ci/windows.sh check-cli [zip]            tools/ci/check-call-cli.py on allioengine-editor-cmd.exe of
 #                                                  instdir/, or of that zip unpacked
 #
 # Trees: build/windows/editor, build/windows/engine-<backend>. Logs: build/test-results/windows-<step>.log
@@ -54,7 +54,7 @@ step_editor() {
     rm -rf "$INSTALL"
     cmake --install "$EDITOR_TREE" --strip
     "$PY" tools/ci/check-notices.py --installed "$(ci_native "$INSTALL/bin")"
-    [[ -f "$INSTALL/bin/jasperengine-editor-cmd.exe" ]] || { echo "no jasperengine-editor-cmd.exe in $INSTALL/bin" >&2; exit 1; }
+    [[ -f "$INSTALL/bin/allioengine-editor-cmd.exe" ]] || { echo "no allioengine-editor-cmd.exe in $INSTALL/bin" >&2; exit 1; }
     ccache --show-stats 2>/dev/null | grep -E 'Hits|Misses' || true
 }
 
@@ -116,13 +116,13 @@ step_tests() {
 
 step_package() {
     local version="$1" cache="$EDITOR_TREE/CMakeCache.txt"
-    [[ -f "$INSTALL/bin/jasperengine-editor.exe" && -f "$cache" ]] || { echo "no editor in $INSTALL: run tools/ci/windows.sh editor first" >&2; exit 1; }
+    [[ -f "$INSTALL/bin/allioengine-editor.exe" && -f "$cache" ]] || { echo "no editor in $INSTALL: run tools/ci/windows.sh editor first" >&2; exit 1; }
     # a release ships what its name says, and without the unit tests' seams in the engine (JASPERENGINE_TESTS
     # compiles test hooks into jasperengine.dll: engine/CMakeLists.txt)
     cache_has "$cache" 'JASPERENGINE_TESTS:BOOL=OFF' || { echo "the editor was built with its tests: build it with EDITOR_TESTS=0 to package it" >&2; exit 1; }
     cache_has "$cache" "JASPERENGINE_EDITOR_VERSION:STRING=$version" \
         || { echo "the editor is not stamped $version ($(grep '^JASPERENGINE_EDITOR_VERSION' "$cache" || echo 'git describe')): build it with JASPERENGINE_VERSION=$version" >&2; exit 1; }
-    local zip="dist/JasperEngine-$version-windows-x64.zip"
+    local zip="dist/AllioEngine-$version-windows-x64.zip"
     rm -f "$zip"
     ci_zip_dir "$INSTALL/bin" "$zip"
 }
@@ -155,7 +155,7 @@ case "$STEP" in
         [[ $# -ge 1 && $# -le 2 ]] || usage
         ci_msvc
         export CI_LOG_COMMAND
-        tools/ci/compile-smoke.sh "$INSTALL/bin/jasperengine-editor-cmd.exe" windows "$@" ;;
+        tools/ci/compile-smoke.sh "$INSTALL/bin/allioengine-editor-cmd.exe" windows "$@" ;;
     package) [[ $# == 1 ]] || usage; ci_logged windows-package step_package "$1" ;;
     check-cli) [[ $# -le 1 ]] || usage; ci_logged windows-check-cli step_check_cli "${1:-}" ;;
     *) usage ;;

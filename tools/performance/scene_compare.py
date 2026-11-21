@@ -58,7 +58,7 @@ def build_baseline(revision):
                                 "current_sha256": hashlib.sha256(original.read_bytes()).hexdigest()}
 
     for target, filename in [("jasperengine", "libjasperengine.so"),
-                              ("jasperengine-editor", "jasperengine-editor")]:
+                              ("allioengine-editor", "allioengine-editor")]:
         lines = subprocess.check_output(["ninja", "-C", str(BUILD), "-t", "commands", target],
                                         text=True).splitlines()
         command = next(line for line in lines if f" -o {filename} " in line)
@@ -68,7 +68,7 @@ def build_baseline(revision):
         arguments[arguments.index("-o") + 1] = str(BASE / filename)
         arguments = ["-Wl,-rpath,$ORIGIN" if arg.startswith("-Wl,-rpath,") else arg
                      for arg in arguments]
-        if target == "jasperengine-editor":
+        if target == "allioengine-editor":
             arguments = [str(BASE / "libjasperengine.so") if arg == "libjasperengine.so" else arg
                          for arg in arguments]
         print("baseline link:", filename, flush=True)
@@ -76,7 +76,7 @@ def build_baseline(revision):
     if not (BASE / "engine").exists():
         (BASE / "engine").symlink_to(BUILD / "engine", target_is_directory=True)
     (BASE / "provenance.json").write_text(json.dumps({"revision": revision, "sources": provenance}, indent=2))
-    subprocess.run(["ldd", str(BASE / "jasperengine-editor")], check=True)
+    subprocess.run(["ldd", str(BASE / "allioengine-editor")], check=True)
 
 
 def compare():
@@ -91,7 +91,7 @@ def compare():
             run.mkdir()
             project = run / "project"
             shutil.copytree(fixture, project)
-            binary = (BASE if variant == "before" else BUILD) / "jasperengine-editor"
+            binary = (BASE if variant == "before" else BUILD) / "allioengine-editor"
             result = run / "result.json"
             environment = os.environ.copy()
             environment.update(LIBGL_ALWAYS_SOFTWARE="1", LP_NUM_THREADS="2",

@@ -23,7 +23,7 @@ The scratch directory is deleted on success and kept (path printed) on failure,
 or always kept with keep=True / JASPER_KEEP_SCRATCH=1.
 
 Environment:
-    JASPER_EDITOR    editor command (shell-split; default: build/linux/editor-install/bin/jasperengine-editor
+    JASPER_EDITOR    editor command (shell-split; default: build/linux/editor-install/bin/allioengine-editor
                      of this checkout, else of the main checkout)
     JASPER_FIXTURE   default fixture project (default: build/fixture-unity of this or the main
                      checkout, /fixture, ~/je/fixture-unity: default_fixture(); without one, the
@@ -210,10 +210,10 @@ def editor_command() -> list[str]:
     env = os.environ.get("JASPER_EDITOR")
     if env:
         return shlex.split(env)
-    found = _first_existing("build/linux/editor-install/bin/jasperengine-editor")
+    found = _first_existing("build/linux/editor-install/bin/allioengine-editor")
     if not found:
         raise HarnessError(
-            "No editor found at build/linux/editor-install/bin/jasperengine-editor "
+            "No editor found at build/linux/editor-install/bin/allioengine-editor "
             "(run tools/build.sh linux) and JASPER_EDITOR is not set")
     return [str(found)]
 

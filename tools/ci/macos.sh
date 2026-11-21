@@ -6,7 +6,7 @@
 #                                            with ARCHS=universal; ARCHS=arm64 is the default) and
 #                                            jasperengine-editor-tests, installed into instdir/ (EDITOR_TESTS=0:
 #                                            no tests; a release editor, which package needs). The installed
-#                                            JasperEngine.app is ad-hoc signed again: --strip voids the linker's
+#                                            AllioEngine.app is ad-hoc signed again: --strip voids the linker's
 #                                            signature, and arm64 runs nothing unsigned
 #   tools/ci/macos.sh engine                 the engine sample project and jasperengine-core-tests (Metal,
 #                                            preset engine-macos-tests)
@@ -15,7 +15,7 @@
 #   tools/ci/macos.sh xcode <macos|ios>      xcodebuild of engine/workspaces/xcode (Debug; the iOS simulator SDK)
 #   tools/ci/macos.sh compile-smoke <project-dir> [backend]  a Compile build of the project, as Build with
 #                                            Method Compile makes it (tools/ci/compile-smoke.sh)
-#   tools/ci/macos.sh package <version>      dist/JasperEngine-<version>-macos-universal.zip (the signed .app,
+#   tools/ci/macos.sh package <version>      dist/AllioEngine-<version>-macos-universal.zip (the signed .app,
 #                                            ditto) and .dmg (the .app and an Applications link)
 #   tools/ci/macos.sh check-cli [zip]        tools/ci/check-call-cli.py on the editor of instdir/, or of that
 #                                            zip unpacked
@@ -33,8 +33,8 @@ usage() { ci_usage "$(ci_header "${BASH_SOURCE[0]}")"; }
 EDITOR_TREE=build/macos/editor
 ENGINE_TREE=build/macos/engine
 INSTALL="$ROOT/instdir"
-APP="$INSTALL/bin/JasperEngine.app"
-EDITOR_BIN="$APP/Contents/MacOS/JasperEngine"
+APP="$INSTALL/bin/AllioEngine.app"
+EDITOR_BIN="$APP/Contents/MacOS/AllioEngine"
 
 need_ninja() {
     command -v ninja >/dev/null 2>&1 || { echo "ninja is not on PATH (brew install ninja)" >&2; exit 1; }
@@ -141,16 +141,16 @@ step_package() {
     archs="$(lipo -archs "$EDITOR_BIN")"
     [[ " $archs " == *" x86_64 "* && " $archs " == *" arm64 "* ]] || { echo "the editor holds $archs, not both slices: build it with ARCHS=universal" >&2; exit 1; }
     verify_app "$APP"
-    local base="dist/JasperEngine-$version-macos-universal"
+    local base="dist/AllioEngine-$version-macos-universal"
     mkdir -p dist
     rm -f "$base.zip" "$base.dmg"
     # ditto keeps the executable bits, symlinks and the signature a plain zip of the tree would lose
     ditto -c -k --sequesterRsrc --keepParent "$APP" "$base.zip"
     local stage=build/macos/dmg-stage
     rm -rf "$stage" && mkdir -p "$stage"
-    ditto "$APP" "$stage/JasperEngine.app"
+    ditto "$APP" "$stage/AllioEngine.app"
     ln -s /Applications "$stage/Applications"
-    hdiutil create -volname JasperEngine -srcfolder "$stage" -ov -format UDZO "$base.dmg"
+    hdiutil create -volname AllioEngine -srcfolder "$stage" -ov -format UDZO "$base.dmg"
     rm -rf "$stage"
     ls -la dist
 }
@@ -162,8 +162,8 @@ step_check_cli() {
         local where="$ROOT/build/macos/check-cli"
         rm -rf "$where" && mkdir -p "$where"
         ditto -x -k "$1" "$where"
-        editor="$where/JasperEngine.app/Contents/MacOS/JasperEngine"
-        verify_app "$where/JasperEngine.app"
+        editor="$where/AllioEngine.app/Contents/MacOS/AllioEngine"
+        verify_app "$where/AllioEngine.app"
     fi
     "$PY" tools/ci/check-call-cli.py "$editor"
 }

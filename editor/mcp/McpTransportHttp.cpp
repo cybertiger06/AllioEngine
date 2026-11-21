@@ -644,7 +644,7 @@ void McpTransportHttp::serveConnection(intptr_t clientFd) {
         if (!bearerMatches(request.header("authorization"), token())) {
             if (!sendResponse(s, 401, "application/json",
                               jsonError(-32600, "Unauthorized: missing or wrong bearer token. Send \"Authorization: Bearer <token>\"; "
-                                                "the JasperEngine editor's MCP window copies the token and the connect command.").dump(),
+                                                "the AllioEngine editor's MCP window copies the token and the connect command.").dump(),
                               {{"WWW-Authenticate", "Bearer"}}, keepAlive) || !keepAlive) return;
             continue;
         }

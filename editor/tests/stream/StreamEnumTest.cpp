@@ -510,7 +510,8 @@ TEST(StreamEnum, ScriptPropertyTypeRoundTrips){
 TEST(StreamEnum, ScriptTypeRoundTrips){
     expectRoundTrip<ScriptType>(StreamTestAccess::scriptTypeToString, StreamTestAccess::stringToScriptType, {
         ScriptType::CPP,
-        ScriptType::LUA
+        ScriptType::LUA,
+        ScriptType::CSHARP
     }, ScriptType::CPP);
 }
 

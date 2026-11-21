@@ -1373,18 +1373,13 @@ void editor::ProjectWindow::renderCreateItems(const fs::path& directory) {
             continue;
         }
         if (item.separatorBefore) ImGui::Separator();
-        // a Lua script lives in the Lua directory (create_script refuses one elsewhere)
-        const std::string refused = item.kind == AssetCreateKind::LuaScript ? luaScriptRefusal(directory) : std::string();
         const std::string label = std::string(item.icon) + " " + item.label;
         if (item.kind == AssetCreateKind::NoiseGraph) {
             renderNoiseGraphCreateMenu(label, directory);
             continue;
         }
-        const bool chosen = ImGui::MenuItem(label.c_str(), nullptr, false, refused.empty());
+        const bool chosen = ImGui::MenuItem(label.c_str());
         uiBuilding.contextMenu.push_back({item.label, lastItemRect()});
-        if (!refused.empty()) {
-            ImGui::SetItemTooltip("%s", refused.c_str());
-        }
         if (chosen) {
             createAsset(item.kind, directory);
             ImGui::CloseCurrentPopup();
@@ -3235,7 +3230,7 @@ editor::FileEntry editor::ProjectWindow::makeFileEntry(const fs::path& path, con
         }else if (Util::isHeaderFile(fileEntry.extension)){
             fileEntry.type = FileType::HEADER;
             fileEntry.icon = headerIcon.getRender();
-        }else if (Util::isSourceFile(fileEntry.extension)){
+        }else if (Util::isCSharpFile(fileEntry.extension) || Util::isSourceFile(fileEntry.extension)){
             fileEntry.type = FileType::SOURCE;
             fileEntry.icon = sourceIcon.getRender();
         }else if (Util::isAudioFile(fileEntry.extension)){
@@ -3668,15 +3663,6 @@ fs::path editor::ProjectWindow::listingFolder() const {
 
 fs::path editor::ProjectWindow::createTargetDirectory() const {
     return listingFolder();
-}
-
-std::string editor::ProjectWindow::luaScriptRefusal(const fs::path& directory) const {
-    const fs::path lua = project->getLuaPath().lexically_normal();
-    if (safewrite::isAtOrBelow(directory.lexically_normal(), lua)) {
-        return std::string();
-    }
-    return "Lua scripts live in the Lua directory (" + FileUtils::pathToGenericUtf8(project->getLuaDir()) +
-           "): Project Settings > Scripting > Lua Directory";
 }
 
 bool editor::ProjectWindow::canDuplicate() const {
@@ -5850,7 +5836,7 @@ namespace {
     // the extensions a named item's files take
     const char* newItemExtension(editor::AssetCreateKind kind) {
         switch (kind) {
-            case editor::AssetCreateKind::LuaScript: return ".lua";
+            case editor::AssetCreateKind::CSharpScript: return ".cs";
             case editor::AssetCreateKind::CppSource: return ".cpp";
             case editor::AssetCreateKind::CppHeader: return ".h";
             case editor::AssetCreateKind::HtmlDocument: return ".html";
@@ -5859,7 +5845,7 @@ namespace {
     }
 
     bool identifierKind(editor::AssetCreateKind kind) {
-        return kind == editor::AssetCreateKind::LuaScript || kind == editor::AssetCreateKind::CppScript;
+        return kind == editor::AssetCreateKind::CSharpScript || kind == editor::AssetCreateKind::CppScript;
     }
 
     // the files a named item writes into `directory` (a folder: itself)
@@ -5874,7 +5860,7 @@ namespace {
         }
     }
 
-    // the name typed without the extension its kind adds ("Goblin.lua" = "Goblin")
+    // the name typed without the extension its kind adds ("Goblin.cs" = "Goblin")
     std::string newItemName(editor::AssetCreateKind kind, std::string name) {
         name.erase(0, name.find_first_not_of(" \t"));
         name.erase(name.find_last_not_of(" \t") + 1);
@@ -5894,13 +5880,9 @@ namespace {
 
     // why `name` can't be the name of a new item in `directory` ("" when it can)
     std::string newItemProblem(editor::AssetCreateKind kind, const fs::path& directory, const std::string& name) {
-        static const std::unordered_set<std::string> luaKeywords = {
-            "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in",
-            "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"};
         if (name.empty()) return "Enter a name.";
         if (identifierKind(kind)) {
             if (editor::Factory::toIdentifier(name) != name) return "A script's name is its class: letters, digits and _, not starting with a digit.";
-            if (kind == editor::AssetCreateKind::LuaScript && luaKeywords.count(name)) return "\"" + name + "\" is a Lua keyword.";
         } else {
             if (name == "." || name == ".." || name.find_first_of("/\\:*?\"<>|") != std::string::npos) {
                 return "A name can't be . or .. or hold / \\ : * ? \" < > |";
@@ -5926,7 +5908,7 @@ void editor::ProjectWindow::startNewItem(AssetCreateKind kind, const fs::path& d
     pendingNewItem.focus = true;
     // a free default, selected for typing over (Unity's "New Folder", "NewBehaviourScript")
     const char* base = kind == AssetCreateKind::Folder ? "New Folder"
-                     : kind == AssetCreateKind::LuaScript ? "NewLuaScript"
+                     : kind == AssetCreateKind::CSharpScript ? "NewBehaviour"
                      : kind == AssetCreateKind::CppScript ? "NewScript"
                      : kind == AssetCreateKind::CppSource ? "NewSource"
                      : kind == AssetCreateKind::CppHeader ? "NewHeader" : "NewDocument";
@@ -5949,9 +5931,9 @@ bool editor::ProjectWindow::createNamedItem(AssetCreateKind kind, const fs::path
     std::vector<WriteFilesCmd::Item> items;
     std::string step;
     switch (kind) {
-        case AssetCreateKind::LuaScript:
-            items.push_back({files[0], ScriptTemplates::lua(name)});
-            step = "Create Lua Script " + name + ".lua";
+        case AssetCreateKind::CSharpScript:
+            items.push_back({files[0], ScriptTemplates::csharp(name)});
+            step = "Create C# Script " + name + ".cs";
             break;
         case AssetCreateKind::CppScript: {
             const ScriptTemplates::Files templates = ScriptTemplates::cppScript(name, name + ".h");
@@ -5981,12 +5963,10 @@ bool editor::ProjectWindow::createNamedItem(AssetCreateKind kind, const fs::path
     }
     Project* owner = project;
     CodeEditor* editor = codeEditor;
-    const bool lua = kind == AssetCreateKind::LuaScript;
-    // after the write, its undo and its redo: the editor refreshes, Lua stubs follow, and a tab of a
+    // after the write, its undo and its redo: the editor refreshes and a tab of a
     // file the undo removed closes when it holds no edits
-    auto afterChange = [owner, editor, lua](const std::vector<fs::path>& changed) {
+    auto afterChange = [owner, editor](const std::vector<fs::path>& changed) {
         ProjectFileWrites::filesWritten(owner, changed);
-        if (lua) Generator::writeLuaScriptStubs(owner->getProjectPath(), owner->getProjectInternalPath(), changed);
         for (const fs::path& path : changed) {
             std::error_code ec;
             if (!fs::exists(path, ec) && editor && editor->isFileOpen(path.string()) && !editor->isFileModified(path.string())) {

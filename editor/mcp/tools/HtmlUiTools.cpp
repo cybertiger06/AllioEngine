@@ -1455,15 +1455,6 @@ bool endsWithHtml(const std::string& path) {
            (lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".htm") == 0);
 }
 
-bool isExampleTemplate(const std::string& name) {
-    const Json& manifest = HtmlUiExamples::manifest();
-    if (!manifest.contains("examples") || !manifest["examples"].is_array()) return false;
-    for (const Json& entry : manifest["examples"]) {
-        if (entry.value("name", std::string()) == name) return entry.value("example", false);
-    }
-    return false;
-}
-
 void createUiDocumentTool(const CallPtr& call) {
     const Json& args = call->args();
     McpContext& ctx = call->ctx();
@@ -1528,7 +1519,7 @@ void createUiDocumentTool(const CallPtr& call) {
         }
     }
     const bool overwrite = args.value("overwrite", false);
-    const bool wantScript = has(args, "script") ? args["script"].get<bool>() : isExampleTemplate(templateName);
+    const bool wantScript = args.value("script", false);
 
     // the files (spec §3.7.4)
     const std::string luaDir = w4::projectRelative(project, project->getLuaPath());
@@ -1753,7 +1744,7 @@ std::string examplesIndex() {
         text += "Checks (assert_ui" + (sizes.empty() ? std::string() : " at " + sizes) + "): `" +
                 entry.value("checks", Json::array()).dump() + "`\n";
     }
-    text += "\n## Use one\n\n`create_ui_document {\"html\": \"assets/ui/<stem>.html\", \"template\": \"<name>\"}` writes the template "
+    text += "\n## Use one\n\n`create_ui_document {\"html\": \"assets/ui/<stem>.html\", \"template\": \"<name>\", \"script\": true}` writes the template "
             "renamed to your document (`<stem>.css`, `<stem>_assets/`, the Lua script `<Stem>UI.lua` in the Lua directory, "
             "attached) and creates the GameObject; then run its checks with `assert_ui {\"checks\": [...], \"viewports\": [...]}`.\n";
     return text;
@@ -1972,7 +1963,7 @@ void registerHtmlUiTools(McpRegistry& registry) {
             "A live HTML/CSS UI document: element tree (ref = reusable selector, box [x,y,w,h] canvas px = "
             "send_input coords, flags overflow/clipped/hidden/offscreen, effects), diagnostics; detail full: box model, "
             "styles + rule file:line. at: hit test. file: a .html/.css's diagnostics (= "
-            "`jasperengine-editor check --ui`). Lua-made content: play only.";
+            "`allioengine-editor check --ui`). Lua-made content: play only.";
         tool.inputSchema = object({
             {"scene", sceneRef()},
             {"entity", entityRef("UI Document (default: the only one).")},
@@ -2049,7 +2040,7 @@ void registerHtmlUiTools(McpRegistry& registry) {
         tool.title = "Create UI Document";
         tool.description =
             "Create a GameObject with a UI Document showing an HTML/CSS file (one scene undo step). A missing html is made "
-            "from template (blank or an example) with its .css, assets and Lua (script: attached); existing files are "
+            "from template (blank or an example) with its .css and assets; existing files are "
             "kept unless overwrite. Returns the files and the first load's diagnostics.";
         tool.inputSchema = object({
             {"scene", sceneRef()},
@@ -2057,7 +2048,7 @@ void registerHtmlUiTools(McpRegistry& registry) {
             {"name", string("Default: from the file name.")},
             {"html", assetPath(".html in the assets dir.")},
             {"template", withDefault(stringEnum("", HtmlUiExamples::names()), "blank")},
-            {"script", boolean("Attach the template's Lua (default: examples yes, blank no).")},
+            {"script", boolean("Opt in to the example's legacy Lua script.")},
             {"sort_order", integer("", -32768, 32767)},
             {"overwrite", boolean("")},
             {"properties", anyObject("Other UI Document properties.")}

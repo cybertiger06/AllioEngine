@@ -2,7 +2,7 @@
 """Build the upgrade-from-main sample game with an OLD editor, through its own MCP tools.
 
     uv run --no-project --with-requirements tools/mcp/requirements.txt \\
-        python tools/ci/upgrade_from_main/gen_fixture.py --editor <old jasperengine-editor> --out <dir>
+        python tools/ci/upgrade_from_main/gen_fixture.py --editor <old allioengine-editor> --out <dir>
 
 Run by generate.sh (which builds the old editor from an origin/main ref first). Makes, in <out>:
     project/        the game "Upgrade Courier" as a user would build it in that editor

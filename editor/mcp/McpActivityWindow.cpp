@@ -94,7 +94,7 @@ void McpActivityWindow::drawStatus() {
         ImGui::TextColored(Theme::Colors::SubtleText, "(%s)", client.c_str());
     } else {
         ImGui::PushStyleColor(ImGuiCol_Text, Theme::Colors::SubtleText);
-        ImGui::TextWrapped("stdio: off (an MCP client launches `jasperengine-editor mcp`)");
+        ImGui::TextWrapped("stdio: off (an MCP client launches `allioengine-editor mcp`)");
         ImGui::PopStyleColor();
     }
 

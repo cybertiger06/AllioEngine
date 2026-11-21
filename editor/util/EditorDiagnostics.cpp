@@ -61,7 +61,7 @@ namespace {
         }
         diag::WatchdogConfig config;
         config.thresholdMs = static_cast<uint32_t>(settings.reportAfterSeconds) * 1000u;
-        config.product = "JasperEngine Editor";
+        config.product = "AllioEngine Editor";
         config.version = JASPERENGINE_EDITOR_VERSION;
         diag::watchdog::start(config);
         LuaWatchdog::attach();
@@ -168,13 +168,13 @@ std::string EditorDiagnostics::noticeText(const diag::crash::ReportInfo& report)
     const std::string when = localClock(report.timeUnix);
     if (report.kind == "crash") {
         const std::string reason = report.reason.substr(0, report.reason.find(' '));
-        return "JasperEngine closed unexpectedly last time (" + (reason.empty() ? std::string("crash") : reason) + " at " +
+        return "AllioEngine closed unexpectedly last time (" + (reason.empty() ? std::string("crash") : reason) + " at " +
                when + "). A crash report was saved.";
     }
     if (report.kind == "hang") {
-        return "JasperEngine closed unexpectedly last time (at " + when + ") while it was not responding (hang report saved).";
+        return "AllioEngine closed unexpectedly last time (at " + when + ") while it was not responding (hang report saved).";
     }
-    return "JasperEngine closed unexpectedly last time (at " + when + "); no report was saved. editor.log may say more.";
+    return "AllioEngine closed unexpectedly last time (at " + when + "); no report was saved. editor.log may say more.";
 }
 
 void EditorDiagnostics::pollNotices() {

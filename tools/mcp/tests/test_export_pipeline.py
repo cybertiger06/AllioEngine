@@ -271,14 +271,12 @@ def tiny_gltf() -> str:
 
 
 def logo_bytes() -> bytes:
-    header = (Path(__file__).resolve().parents[3] / "editor" / "resources" / "icons" / "jasperengine-logo_png.h").read_text()
-    body = header[header.index("{") + 1:header.index("}")]
-    return bytes(int(h, 16) for h in re.findall(r"0x([0-9a-fA-F]{2})", body))
+    return (Path(__file__).resolve().parents[3] / "editor/resources/icons/allioengine-editor.png").read_bytes()
 
 
 async def test_web_page_and_favicon(ed: Editor):
     """export-settings/apply.cmake, which every web build runs on the linked page: index.html next to
-    <app>.export.html, and a favicon (the JasperEngine logo without Web > Favicon or a Player icon)"""
+    <app>.export.html, and a favicon (the Allio Studio logo without Web > Favicon or a Player icon)"""
     out = ed.scratch.root / "export-web-page"
     job = await source_export(ed, out)
     ed.check_eq(job["status"], "succeeded", f"{job.get('message')}")

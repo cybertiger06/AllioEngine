@@ -37,7 +37,7 @@ def main_thread_ticks(root: Path) -> tuple:
             stat = open(f"/proc/{name}/task/{name}/stat").read()
         except OSError:
             continue
-        if cwd.startswith(str(root)) and "jasperengine-editor" in exe:
+        if cwd.startswith(str(root)) and "allioengine-editor" in exe:
             fields = stat[stat.rindex(")") + 2:].split()
             return int(name), int(fields[11]) + int(fields[12])
     return None, 0

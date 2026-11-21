@@ -285,7 +285,7 @@ namespace jasperengine::editor {
         // why the last rename was refused (the "Rename Error" popup; empty: a filesystem error)
         std::string renameErrorText;
 
-        // Create > Folder / Lua Script / C++ Script / C++ Source File / C++ Header File / HTML
+        // Create > Folder / C# Script / C++ Script / C++ Source File / C++ Header File / HTML
         // Document: the name is asked first (it is the class or module), then the files are written
         // with it as one undo step
         struct PendingNewItem {
@@ -604,8 +604,6 @@ namespace jasperengine::editor {
         void createAsset(AssetCreateKind kind, const fs::path& directory);
         // the folder Assets > Create makes things in
         fs::path createTargetDirectory() const;
-        // why a Lua script can't be created in `directory` ("" when it can): outside the Lua directory
-        std::string luaScriptRefusal(const fs::path& directory) const;
         // Assets > Create > Pose Animation: a .poseanim with one neutral pose (Pose Animation window)
         void assetsCreatePoseAnimation(const fs::path& directory);
         // Create > Animator Controller / Avatar Mask / Animation Montage (one project undo step)

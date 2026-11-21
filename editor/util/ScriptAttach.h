@@ -35,7 +35,7 @@ namespace jasperengine::editor {
     // Hierarchy (drops), the New Script dialog and MCP attach_script
     class ScriptAttach {
     public:
-        // The entry for a script file (absolute .lua, .h/.hpp or .cpp; a C++ pair side by side).
+        // The entry for a script file (absolute .cs, .lua, .h/.hpp or .cpp; a C++ pair side by side).
         // A Lua script's name is its file name (className differing adds a warning); a C++ class is
         // found in the header when className is empty.
         static bool makeEntry(Project* project, const std::filesystem::path& file, const std::string& className,

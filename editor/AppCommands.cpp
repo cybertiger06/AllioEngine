@@ -242,16 +242,6 @@ void editor::App::registerCommands(){
     enable("assets.rename", [this]() { return projectWindow->hasSingleAssetSelection(); });
     enable("assets.delete", [this]() { return projectWindow->hasAssetSelection(); });
     enable("assets.duplicate", [this]() { return projectWindow->canDuplicate(); });
-    // a Lua script lives in the Lua directory (the folder Assets > Create makes things in)
-    {
-        const CommandDef* existing = catalog.find("assets.createLuaScript");
-        if (existing) {
-            CommandDef def = *existing;
-            def.enabled = [this]() { return projectWindow->luaScriptRefusal(projectWindow->createTargetDirectory()).empty(); };
-            def.disabledReason = [this]() { return projectWindow->luaScriptRefusal(projectWindow->createTargetDirectory()); };
-            catalog.add(std::move(def));
-        }
-    }
     enable("assets.createAnimationClip", []() { return static_cast<bool>(animationClipAppHooks().createClipAsset); });
     enable("assets.createSoundEventFromClips", [this]() { return projectWindow->hasAudioSelection(); });
     enable("assets.createSpriteAtlasFromSelection", [this]() { return projectWindow->hasSpriteSelection(); });

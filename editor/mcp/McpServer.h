@@ -35,7 +35,7 @@ namespace jasperengine::editor::mcp {
 
     // How the process was launched (editor/main.cpp fills it before the backend starts).
     struct McpLaunchOptions {
-        bool stdio = false;               // `jasperengine-editor mcp`: serve MCP on the original stdio
+        bool stdio = false;               // `allioengine-editor mcp`: serve MCP on the original stdio
         int stdioOutFd = -1;              // dup of the original stdout (fd 1 is stderr by then)
         int stdioInFd = -1;               // dup of the original stdin (fd 0 is /dev/null by then)
         int httpPort = 0;                 // --http-port / --mcp-port; 0 = the Editor Settings choice
@@ -121,7 +121,7 @@ namespace jasperengine::editor::mcp {
     // stdio and Streamable HTTP transports; tools run on the editor main thread.
     class McpServer {
     public:
-        static constexpr const char* SERVER_NAME = "jasperengine-editor";
+        static constexpr const char* SERVER_NAME = "allioengine-editor";
         static constexpr int DEFAULT_HTTP_PORT = 47615;
         // Stateless revision: no initialize, every request names it in its _meta
         static constexpr const char* MODERN_PROTOCOL_VERSION = "2026-07-28";

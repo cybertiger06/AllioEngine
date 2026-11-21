@@ -88,7 +88,7 @@ PinnedDownload AndroidTools::bundletoolDownload() {
     download.url = std::string("https://github.com/google/bundletool/releases/download/") + BUNDLETOOL_VERSION + "/bundletool-all-" +
                    BUNDLETOOL_VERSION + ".jar";
     download.sha256 = BUNDLETOOL_SHA256;
-    download.target = App::getUserCacheBaseDir() / "jasperengine" / "tools" / (std::string("bundletool-all-") + BUNDLETOOL_VERSION + ".jar");
+    download.target = App::getUserCacheBaseDir() / "allioengine" / "tools" / (std::string("bundletool-all-") + BUNDLETOOL_VERSION + ".jar");
     return download;
 }
 

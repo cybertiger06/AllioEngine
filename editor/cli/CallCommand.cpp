@@ -118,7 +118,7 @@ const char* codeName(int exit) {
 }
 
 std::string commandName(const char* executableName) {
-    return fs::path(executableName ? executableName : "jasperengine-editor").filename().string();
+    return fs::path(executableName ? executableName : "allioengine-editor").filename().string();
 }
 
 // ---------------------------------------------------------------- options
@@ -362,7 +362,7 @@ std::string describeInstance(const InstanceInfo& info) {
 }
 
 fs::path executablePath(const char* executableName) {
-    fs::path name = fs::path(executableName ? executableName : "jasperengine-editor").filename();
+    fs::path name = fs::path(executableName ? executableName : "allioengine-editor").filename();
 #ifdef _WIN32
     if (!name.has_extension()) name += ".exe";
 #endif
@@ -781,7 +781,7 @@ void printUsage(const std::string& exe, const Catalog& catalog) {
         << "  " << exe << " batch [options] [--continue] [--atomic] < calls.ndjson\n"
         << "  " << exe << " list-tools [options] [--json] [--group G|all]\n"
         << "  " << exe << " editors [--json]\n\n"
-        << "Runs MCP tools of a JasperEngine editor from a shell. Tool names are snake_case or kebab-case;\n"
+        << "Runs MCP tools of an AllioEngine editor from a shell. Tool names are snake_case or kebab-case;\n"
         << "flags, --help and validation come from each tool's schema.\n\n"
         << "Options (before the tool name):\n"
         << "  --url U          http://127.0.0.1:<port>/mcp of a running editor\n"

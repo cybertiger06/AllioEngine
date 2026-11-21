@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke test of a project made from each Project Hub template (editor/resources/templates/<id>): the
 # editor's create_project makes it (File > New Project from the template, in the linux image, through
-# `jasperengine-editor call`), then tools/smoke-test.sh builds it, runs it and opens it in the editor.
+# `allioengine-editor call`), then tools/smoke-test.sh builds it, runs it and opens it in the editor.
 # Needs tools/build.sh linux, and for the default SMOKE_METHOD=prebuilt the player runtimes
 # (tools/build.sh players). Projects go to build/ci-templates/<id>, results to build/smoke-template-<id>/.
 #
@@ -15,7 +15,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-EDITOR=build/linux/editor-install/bin/jasperengine-editor
+EDITOR=build/linux/editor-install/bin/allioengine-editor
 [[ -x "$EDITOR" ]] || { echo "No editor at $EDITOR; run tools/build.sh linux" >&2; exit 1; }
 METHOD="${SMOKE_METHOD:-prebuilt}"
 

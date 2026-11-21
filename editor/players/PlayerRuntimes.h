@@ -8,7 +8,7 @@
 // engine/player/variants.json: docs/specs/S34-player-size.md R4), each a directory with its binaries, licenses/, its
 // platform template and player-info.json. Found in --players-dir / JASPER_PLAYERS_DIR, next to
 // the editor (its install ships the host's desktop players and the web's), and in
-// <user cache>/jasperengine/players/<editor version>/ where downloads and installs go.
+// <user cache>/allioengine/players/<editor version>/ where downloads and installs go.
 
 #include <atomic>
 #include <cstdint>

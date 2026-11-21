@@ -209,6 +209,26 @@ void CustomTextEditor::initializeLanguage() {
             languageDef.preprocessorPrefix = "#";
             break;
 
+        case SyntaxLanguage::CSharp:
+            languageDef.keywords = {
+                "abstract", "as", "async", "await", "base", "break", "case", "catch", "checked", "class",
+                "const", "continue", "default", "delegate", "do", "else", "enum", "event", "explicit",
+                "extern", "false", "finally", "fixed", "for", "foreach", "get", "goto", "if", "implicit",
+                "in", "init", "interface", "internal", "is", "lock", "namespace", "new", "null",
+                "operator", "out", "override", "params", "partial", "private", "protected", "public",
+                "readonly", "record", "ref", "return", "sealed", "set", "sizeof", "stackalloc", "static",
+                "struct", "switch", "this", "throw", "true", "try", "typeof", "unchecked", "unsafe",
+                "using", "virtual", "volatile", "while", "yield"
+            };
+            languageDef.types = {
+                "bool", "byte", "char", "decimal", "double", "float", "int", "long", "object", "sbyte",
+                "short", "string", "uint", "ulong", "ushort", "var", "void", "Behaviour", "Key", "Vector3"
+            };
+            languageDef.singleLineComment = "//";
+            languageDef.multiLineCommentStart = "/*";
+            languageDef.multiLineCommentEnd = "*/";
+            break;
+
         case SyntaxLanguage::Lua:
             languageDef.keywords = {
                 "and", "break", "do", "else", "elseif", "end", "false", "for",
@@ -454,6 +474,7 @@ void CustomTextEditor::SetLanguage(SyntaxLanguage lang) {
 const char* CustomTextEditor::GetLanguageName() const {
     switch (language) {
         case SyntaxLanguage::Cpp: return "C++";
+        case SyntaxLanguage::CSharp: return "C#";
         case SyntaxLanguage::Lua: return "Lua";
         case SyntaxLanguage::CMake: return "CMake";
         case SyntaxLanguage::Html: return "HTML";

@@ -3137,7 +3137,7 @@ void SpriteNormalsWindow::drawAdvanced() {
     rowLabel("Green", nullptr);
     {
         const char* names[] = {"OpenGL", "DirectX"};
-        const char* tips[] = {"Green points up the image: what JasperEngine, Unity, Godot and Blender read",
+        const char* tips[] = {"Green points up the image: what AllioEngine, Unity, Godot and Blender read",
                               "Green points down: Unreal. Not for this engine's sprites"};
         int v = settings.directx ? 1 : 0;
         if (segmentedButtons("##green", v, names, tips, 2)) {

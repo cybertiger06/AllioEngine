@@ -18,7 +18,7 @@ ID="${2:-linux-x64-glcore-release}"
 [[ "$VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ && "$ID" =~ ^[a-z0-9-]+$ ]] || { echo "check-published: bad version or id" >&2; exit 2; }
 REPO="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY (owner/name) names the repository}"
 OUT=build/published
-APPIMAGE="JasperEngine-$VERSION-linux-x86_64.AppImage"
+APPIMAGE="AllioEngine-$VERSION-linux-x86_64.AppImage"
 rm -rf "$OUT"
 mkdir -p "$OUT/cwd"
 

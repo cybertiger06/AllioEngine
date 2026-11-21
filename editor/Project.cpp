@@ -70,6 +70,7 @@
 #include "Platform.h"
 #include "Screen.h"
 #include "util/FileUtils.h"
+#include "util/CSharpBuild.h"
 #include "vcs/VcsService.h"
 #include "vcs/SceneDiffTracker.h"
 #include <cstdlib>
@@ -3575,7 +3576,7 @@ std::string editor::Project::getApplicationName(const std::string& platformOverr
     if (!platformOverride.empty()) return platformOverride;
     if (!applicationSettings.name.empty()) return applicationSettings.name;
     if (!name.empty()) return name;
-    return "JasperEngine";
+    return "AllioEngine";
 }
 
 std::string editor::Project::getApplicationIdentifier(const std::string& platformOverride) const{
@@ -4295,7 +4296,7 @@ void editor::Project::updateSceneCppScripts(SceneProject* sceneProject) {
 
         // disabled scripts too: they exist at runtime and can be enabled (Unity)
         for (const auto& scriptEntry : scriptComponent.scripts) {
-            if (scriptEntry.type == ScriptType::LUA)
+            if (scriptEntry.type != ScriptType::CPP)
                 continue;
             if (scriptEntry.path.empty())
                 continue;
@@ -10300,6 +10301,7 @@ void editor::Project::updateAllScriptsProperties(uint32_t sceneId, ScriptPropert
 }
 
 fs::path editor::Project::scriptPropertyFile(const ScriptEntry& entry) const {
+    if (entry.type == ScriptType::CSHARP) return scriptSourceFile(entry);
     if (entry.type == ScriptType::LUA) {
         return entry.path.empty() ? fs::path() : resolveLuaPath(entry.path).lexically_normal();
     }
@@ -10332,6 +10334,14 @@ bool editor::Project::updateScriptProperties(SceneProject* sceneProject, Entity 
         const fs::path fullPath = scriptPropertyFile(scriptEntry);
         if (fullPath.empty()) continue;
         const bool edited = !inMemoryFile.empty() && fullPath == inMemoryFile;
+
+        if (scriptEntry.type == ScriptType::CSHARP) {
+            std::string code;
+            if (!edited && !ProjectChecks::readFile(fullPath, code)) continue;
+            const auto fields = ScriptParser::csharpFields(edited ? inMemoryContent : code, scriptEntry.className);
+            if (fields) hasChanges |= mergeScriptProperties(scriptEntry.properties, *fields);
+            continue;
+        }
 
         if (scriptEntry.type == ScriptType::CPP) {
             std::vector<ScriptProperty> parsedProperties;
@@ -10846,6 +10856,13 @@ void editor::Project::runPlayStartup(const std::shared_ptr<PlaySession>& session
         YAML::Node playSnapshot = std::move(ready.snapshot);
         PlayPrefabState playPrefabState = std::move(ready.prefabState);
         std::set<Entity> playEntities = std::move(ready.entities);
+
+        std::string managedError;
+        if (!csharp::buildForPlay(getProjectPath(), getProjectInternalPath(), managedError)) {
+            failPlayStartup(session, sceneId, managedError);
+            return;
+        }
+        if (isCancelled()) { markStartupDone(); return; }
 
         // play regenerates the standalone project, so its shaders are ensured here too
         buildStandaloneShaderCache(ready.shaderKeys);

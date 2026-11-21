@@ -71,7 +71,7 @@ namespace {
 }
 
 int ProceduralMaterialCommand::run(int argc, char** argv, const char* executableName) {
-    const std::string exe = fs::path(executableName ? executableName : "jasperengine-editor").filename().string();
+    const std::string exe = fs::path(executableName ? executableName : "allioengine-editor").filename().string();
     std::vector<std::string> args(argv + 1, argv + argc);
     if (args.empty() || args[0] == "-h" || args[0] == "--help") {
         printBakeUsage(exe);

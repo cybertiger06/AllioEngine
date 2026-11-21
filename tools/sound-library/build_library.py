@@ -58,7 +58,7 @@ Everything but verify needs the pinned packages:
 
     uv run --no-project --python 3.12 --with numpy==2.5.4 --with scipy==1.18.1 --with soundfile==0.14.0 \\
         --with pyloudnorm==0.2.0 tools/sound-library/build_library.py all --cache /tmp/snd-cache --work /tmp/snd-work \\
-        --editor build/linux/editor-install/bin/jasperengine-editor
+        --editor build/linux/editor-install/bin/allioengine-editor
 
 Network use is only in fetch, seed and semantic-fetch: HTTPS to kenney.nl, freesound.org and
 cdn.freesound.org (semantic-fetch: huggingface.co and its CDN, *.huggingface.co and *.hf.co) only, one request per second per host group, a User-Agent naming this tool, retries with
@@ -3180,7 +3180,7 @@ def analyse(out, editor):
     lines = [f"{json.dumps(i, ensure_ascii=False)}: {json.dumps(items[i], sort_keys=True, separators=(',', ':'), ensure_ascii=False)}"
              for i in sorted(items)]
     head = (f'{{"format": "{ANALYSIS_FORMAT}", "version": 1, "analyzer_version": {info["analyzer_version"]}, '
-            f'"generated_by": "jasperengine-editor {" ".join(info["command"])}", "items": {{\n')
+            f'"generated_by": "allioengine-editor {" ".join(info["command"])}", "items": {{\n')
     text = head + ",\n".join(lines) + "\n}}\n"
     write_if_changed(out / ANALYSIS, text.encode("utf-8"))
     print(f"analyse: {len(items)} items, analyzer v{info['analyzer_version']}, into {out / ANALYSIS}")
@@ -3491,8 +3491,8 @@ def main(argv=None):
     work = lambda p: p.add_argument("--work", required=True, help="work directory (prepared clips)")
     out = lambda p: p.add_argument("--out", default=str(DEFAULT_OUT), help="library directory (default: %(default)s)")
     audit = lambda p: p.add_argument("--audit", default=str(DEFAULT_AUDIT), help="audit log (default: %(default)s)")
-    editor = lambda p: p.add_argument("--editor", help="jasperengine-editor with the 'audio analyze' command")
-    editor_req = lambda p: p.add_argument("--editor", required=True, help="jasperengine-editor with the 'audio analyze' command")
+    editor = lambda p: p.add_argument("--editor", help="allioengine-editor with the 'audio analyze' command")
+    editor_req = lambda p: p.add_argument("--editor", required=True, help="allioengine-editor with the 'audio analyze' command")
     offline = lambda p: p.add_argument("--offline", action="store_true", help="fail on any network request; use the cache only")
     semantic_file = lambda p: p.add_argument("--semantic-file", default=str(DEFAULT_SEMANTIC),
                                              help="the semantic stage's recorded file (default: %(default)s)")

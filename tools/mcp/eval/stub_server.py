@@ -209,7 +209,7 @@ def serve(stub: Stub, inp=sys.stdin, out=sys.stdout) -> None:
             send({"jsonrpc": "2.0", "id": mid, "result": {
                 "protocolVersion": params.get("protocolVersion", "2025-06-18"),
                 "capabilities": {"tools": {"listChanged": True}, "resources": {}},
-                "serverInfo": {"name": "jasperengine-editor", "version": "eval"},
+                "serverInfo": {"name": "allioengine-editor", "version": "eval"},
                 "instructions": stub.instructions}})
         elif method == "tools/list":
             send({"jsonrpc": "2.0", "id": mid, "result": {"tools": stub.listed()}})

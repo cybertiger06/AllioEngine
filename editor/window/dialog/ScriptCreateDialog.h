@@ -22,12 +22,13 @@ public:
         CPP_SUBCLASS,
         CPP_SCRIPT_CLASS,
         LUA,
+        CSHARP,
     };
 
     // The editor's script templates (what this dialog creates), written without the dialog
     // (also used by the MCP create_script tool). CPP_SUBCLASS derives from the class of
-    // `entity` in `scene`; the other kinds ignore them. Lua writes only sourcePath.
-    static void writeTemplateFiles(Scene* scene, Entity entity,
+    // `entity` in `scene`; the other kinds ignore them. C# and Lua write only sourcePath.
+    static bool writeTemplateFiles(Scene* scene, Entity entity,
                                    const fs::path& headerPath,
                                    const fs::path& sourcePath,
                                    const std::string& classOrModuleName,
@@ -39,8 +40,8 @@ private:
     fs::path m_luaPath;
     std::string m_selectedPath;
     char m_baseNameBuffer[128] = "";
-    CreationKind m_creationKind = CreationKind::CPP_SUBCLASS;
-    ScriptType m_existingScriptType = ScriptType::CPP;
+    CreationKind m_creationKind = CreationKind::CSHARP;
+    ScriptType m_existingScriptType = ScriptType::CSHARP;
     bool m_attachExisting = false;
     fs::path m_existingHeaderPath;
     fs::path m_existingSourcePath;
@@ -54,12 +55,7 @@ private:
     std::string sanitizeClassName(const std::string& in) const;
     std::string inferClassName(const fs::path& headerPath, const std::string& fallback) const;
 
-    void writeFiles(const fs::path& headerPath,
-                    const fs::path& sourcePath,
-                    const std::string& classOrModuleName,
-                    CreationKind kind);
-
-    void finalizeCreation(const fs::path& headerPath,
+    bool finalizeCreation(const fs::path& headerPath,
                           const fs::path& sourcePath,
                           const std::string& name);
 

@@ -12,7 +12,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-[[ -x build/linux/editor-install/bin/jasperengine-editor ]] \
+[[ -x build/linux/editor-install/bin/allioengine-editor ]] \
     || { echo "nightly-export-checks: no editor at build/linux/editor-install (tools/build.sh linux)" >&2; exit 2; }
 
 echo "== smoke: tools/fixtures/pixel-fonts (compile)"

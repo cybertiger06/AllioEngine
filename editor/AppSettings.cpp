@@ -53,18 +53,18 @@ YAML::Node colorNode(const std::array<float, 4>& color) {
 std::filesystem::path userConfigDirectory() {
 #if defined(_WIN32)
     if (const char* appData = std::getenv("APPDATA"); appData && *appData) {
-        return std::filesystem::path(appData) / "JasperEngine";
+        return std::filesystem::path(appData) / "AllioEngine";
     }
 #elif defined(__APPLE__)
     if (const char* home = std::getenv("HOME"); home && *home) {
-        return std::filesystem::path(home) / "Library" / "Application Support" / "JasperEngine";
+        return std::filesystem::path(home) / "Library" / "Application Support" / "AllioEngine";
     }
 #else
     if (const char* xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg) {
-        return std::filesystem::path(xdg) / "jasperengine";
+        return std::filesystem::path(xdg) / "allioengine";
     }
     if (const char* home = std::getenv("HOME"); home && *home) {
-        return std::filesystem::path(home) / ".config" / "jasperengine";
+        return std::filesystem::path(home) / ".config" / "allioengine";
     }
 #endif
     return std::filesystem::current_path();

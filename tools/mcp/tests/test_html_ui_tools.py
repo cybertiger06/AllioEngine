@@ -447,7 +447,7 @@ async def test_create_blank(ed: Editor):
 
 async def test_create_template_renames(ed: Editor):
     await ensure_scene(ed)
-    r = await ed.call("create_ui_document", scene=S["scene"], html="assets/ui/title_screen.html", template="main_menu")
+    r = await ed.call("create_ui_document", scene=S["scene"], html="assets/ui/title_screen.html", template="main_menu", script=True)
     ed.check_eq(set(r["files_written"]), {"assets/ui/title_screen.html", "assets/ui/title_screen.css",
                                           "assets/ui/title_screen_assets/logo.svg", "scripts/TitleScreenUI.lua"}, "files")
     ed.check_eq(r["script"], {"path": "scripts/TitleScreenUI.lua", "attached": True}, "script")
@@ -482,7 +482,7 @@ async def test_create_existing_kept(ed: Editor):
     # an existing html and an example template: the html stays, the template's Lua is still written and attached
     # (the HUD's script expects the HUD's markup: the GameObject goes before anything plays)
     disk_write(ed, "assets/ui/own_hud.html", OVERLAY_HTML)
-    r = await ed.call("create_ui_document", scene=S["scene"], html="assets/ui/own_hud.html", template="hud")
+    r = await ed.call("create_ui_document", scene=S["scene"], html="assets/ui/own_hud.html", template="hud", script=True)
     ed.check_eq((r["files_kept"], r["files_written"]), (["assets/ui/own_hud.html"], ["scripts/OwnHudUI.lua"]), "only the Lua")
     ed.check_eq(r["script"], {"path": "scripts/OwnHudUI.lua", "attached": True}, "attached")
     await ed.call("delete_entities", scene=S["scene"], entities=[r["entity"]["id"]])
@@ -944,7 +944,7 @@ async def test_inspect_models_play(ed: Editor):
     await play_scene(ed)
     made = await ed.call("create_scene", name="HtmlUiHud", type="UI")
     S["hud_scene"] = made["scene"]["id"]
-    hud = await ed.call("create_ui_document", scene=S["hud_scene"], html="assets/ui/hud_test.html", template="hud")
+    hud = await ed.call("create_ui_document", scene=S["hud_scene"], html="assets/ui/hud_test.html", template="hud", script=True)
     S["hud"] = hud["entity"]["id"]
     ed.check_eq(hud["script"], {"path": "scripts/HudTestUI.lua", "attached": True}, "the hud's Lua")
     r = await ed.call_raw("inspect_ui", {"scene": S["hud_scene"], "entity": S["hud"], "models": True})
@@ -1068,7 +1068,7 @@ async def test_send_input_drag_to_target(ed: Editor):
     await ensure_scene(ed)
     made = await ed.call("create_scene", name="HtmlUiInventory", type="UI")
     scene = made["scene"]["id"]
-    inv = await ed.call("create_ui_document", scene=scene, html="assets/ui/bag.html", template="inventory")
+    inv = await ed.call("create_ui_document", scene=scene, html="assets/ui/bag.html", template="inventory", script=True)
     ed.check_eq(inv["script"]["path"], "scripts/BagUI.lua", "renamed Lua")
     await ed.call("play", action="start", scene=scene, fixed_fps=60, auto_pause=True)
     try:

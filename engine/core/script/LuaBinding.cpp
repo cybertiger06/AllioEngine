@@ -2149,17 +2149,13 @@ void LuaBinding::createLuaScripts(Scene* scene, const std::vector<Entity>& entit
 
 void LuaBinding::initializeLuaScripts(Scene* scene) {
     if (!scene) return;
-    if (!luastate) {
-        Log::error("Lua state not initialized");
-        return;
-    }
-
-    createLuaScripts(scene);
-    // all init, then all onEnable; start waits for the first frame
+    if (luastate) createLuaScripts(scene);
+    // Native and C# behaviours still start when this scene has no Lua VM.
+    // All Awake, then all OnEnable. Start waits for the first frame.
     ScriptRuntime::awakeScene(scene);
 
     // the scene's HTML documents run their <script type="text/lua"> from now on (phase 2)
-    scene->getSystem<UIDocumentSystem>()->startDocumentScripts();
+    if (luastate) scene->getSystem<UIDocumentSystem>()->startDocumentScripts();
 }
 
 void LuaBinding::initializeLuaScripts(Scene* scene, const std::vector<Entity>& entities) {

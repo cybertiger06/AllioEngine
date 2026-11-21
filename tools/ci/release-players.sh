@@ -8,7 +8,7 @@
 #
 #   tools/build.sh exec runtime tools/ci/release-players.sh <version> <archive dir> <players dir> [<kept id prefix>...]
 #
-# The editor is build/linux/editor-install/bin/jasperengine-editor.
+# The editor is build/linux/editor-install/bin/allioengine-editor.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
@@ -17,7 +17,7 @@ cd "$ROOT"
 VERSION="$1" ARCHIVES="$2" PLAYERS="$3"
 shift 3
 KEEP=("$@")
-EDITOR=build/linux/editor-install/bin/jasperengine-editor
+EDITOR=build/linux/editor-install/bin/allioengine-editor
 [[ -x "$EDITOR" ]] || { echo "release-players: no editor at $EDITOR" >&2; exit 2; }
 SCRATCH="$(mktemp -d)"
 trap 'rm -rf "$SCRATCH"' EXIT

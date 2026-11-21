@@ -570,7 +570,7 @@ VcsResult SvnProvider::log(const RepoPath* path, int limit, int skip, std::vecto
 
 VcsResult SvnProvider::lock(std::span<const RepoPath> paths) {
     if (paths.empty()) return VcsResult::success();
-    const std::string comment = cfg.userName.empty() ? std::string("JasperEngine Editor") : cfg.userName;
+    const std::string comment = cfg.userName.empty() ? std::string("AllioEngine Editor") : cfg.userName;
     const ProcessResult result = svnWithTargets({"lock", "-m", comment, "--encoding", "UTF-8"}, paths, cfg.networkTimeoutMs);
     // svn warns per path it could not lock and exits 0 or 1: either way stderr says which
     if (!result.ok() || result.err.find("warning") != std::string::npos) return VcsResult::failure(result.message(), result.exitCode);

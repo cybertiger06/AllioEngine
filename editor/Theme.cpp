@@ -113,8 +113,8 @@ void jasperengine::editor::Theme::apply() {
     const ImVec4 darkStrip = hex(0x282828); // tab strip and title bars
     const ImVec4 border    = hex(0x191919); // outlines and the gaps between panels
     const ImVec4 field     = hex(0x2A2A2A); // input fields
-    const ImVec4 selection = hex(0x2C5D87); // Unity selection blue
-    const ImVec4 accent    = hex(0x3A79BB); // focus accents: active tab line, nav, drops
+    const ImVec4 selection = hex(0x8A1640); // white text on Allio raspberry
+    const ImVec4 accent    = hex(0xCD164F); // focus accents: active tab line, nav, drops
 
     colors[ImGuiCol_Text]                       = hex(0xD2D2D2);
     colors[ImGuiCol_TextDisabled]               = hex(0x808080);
@@ -141,8 +141,8 @@ void jasperengine::editor::Theme::apply() {
     colors[ImGuiCol_ButtonHovered]              = hex(0x676767);
     colors[ImGuiCol_ButtonActive]               = hex(0x464646);
     colors[ImGuiCol_Header]                     = selection;
-    colors[ImGuiCol_HeaderHovered]              = hex(0x3B5A78);
-    colors[ImGuiCol_HeaderActive]               = hex(0x336A9A);
+    colors[ImGuiCol_HeaderHovered]              = hex(0x74223E);
+    colors[ImGuiCol_HeaderActive]               = hex(0xAB1848);
     colors[ImGuiCol_Separator]                  = border;
     colors[ImGuiCol_SeparatorHovered]           = hex(0x4A4A4A);
     colors[ImGuiCol_SeparatorActive]            = accent;
@@ -168,7 +168,7 @@ void jasperengine::editor::Theme::apply() {
     colors[ImGuiCol_TableBorderLight]           = hex(0x2A2A2A);
     colors[ImGuiCol_TableRowBg]                 = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
     colors[ImGuiCol_TableRowBgAlt]              = ImVec4(1.00f, 1.00f, 1.00f, 0.025f);
-    colors[ImGuiCol_TextLink]                   = hex(0x4C9BEA);
+    colors[ImGuiCol_TextLink]                   = hex(0xFF93B2);
     colors[ImGuiCol_TextSelectedBg]             = ImVec4(selection.x, selection.y, selection.z, 0.85f);
     colors[ImGuiCol_TreeLines]                  = hex(0x505050);
     colors[ImGuiCol_DragDropTarget]             = accent;
@@ -199,7 +199,7 @@ void jasperengine::editor::Theme::apply() {
     Colors::AnimationAudio = hex(0x3E9E5B);
     Colors::AnimationSnapshot = hex(0x8A63C9);
 
-    Colors::ButtonActivated = hex(0x46607C);
+    Colors::ButtonActivated = hex(0x842544);
     Colors::IconButtonHovered = ImVec4(1.0f, 1.0f, 1.0f, 0.08f);
     Colors::IconButtonActive = ImVec4(1.0f, 1.0f, 1.0f, 0.14f);
     Colors::FileCardBackground = hex(0x323232);

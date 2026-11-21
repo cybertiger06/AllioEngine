@@ -22,6 +22,8 @@ namespace jasperengine::editor::ScriptTemplates {
         std::string source;
     };
 
+    std::string csharp(const std::string& className);
+
     // a Lua module declared as a ScriptInstance subclass with a field per property
     std::string lua(const std::string& classOrModuleName);
     // a ScriptBase subclass; the source includes headerFileName

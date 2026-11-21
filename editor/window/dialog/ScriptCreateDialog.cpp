@@ -67,8 +67,8 @@ void ScriptCreateDialog::open(Scene* scene,
     m_projectPath = projectPath;
     m_luaPath = luaPath;
     m_selectedPath = projectPath.string();
-    m_creationKind = CreationKind::CPP_SUBCLASS;
-    m_existingScriptType = ScriptType::CPP;
+    m_creationKind = CreationKind::CSHARP;
+    m_existingScriptType = ScriptType::CSHARP;
     m_attachExisting = startWithExisting;
     m_existingHeaderPath.clear();
     m_existingSourcePath.clear();
@@ -99,42 +99,42 @@ std::string ScriptCreateDialog::inferClassName(const fs::path& headerPath,
     return fallback;
 }
 
-void ScriptCreateDialog::writeFiles(const fs::path& headerPath,
-                                      const fs::path& sourcePath,
-                                      const std::string& classOrModuleName,
-                                      CreationKind kind) {
-    writeTemplateFiles(m_scene, m_entity, headerPath, sourcePath, classOrModuleName, kind);
-}
-
-void ScriptCreateDialog::writeTemplateFiles(Scene* scene, Entity entity,
+bool ScriptCreateDialog::writeTemplateFiles(Scene* scene, Entity entity,
                                             const fs::path& headerPath,
                                             const fs::path& sourcePath,
                                             const std::string& classOrModuleName,
                                             CreationKind kind) {
     auto write = [](const fs::path& path, const std::string& text) {
-        fs::create_directories(path.parent_path());
+        std::error_code ec;
+        fs::create_directories(path.parent_path(), ec);
+        if (ec) return false;
         AtomicFileStream out(path);
-        if (out) out << text;
+        out << text;
+        return out.commit();
     };
+    if (kind == CreationKind::CSHARP) {
+        return write(sourcePath, ScriptTemplates::csharp(classOrModuleName));
+    }
     if (kind == CreationKind::LUA) {
-        write(sourcePath, ScriptTemplates::lua(classOrModuleName));
-        return;
+        return write(sourcePath, ScriptTemplates::lua(classOrModuleName));
     }
     const std::string headerFileName = headerPath.filename().string();
     const ScriptTemplates::Files files = kind == CreationKind::CPP_SUBCLASS
         ? ScriptTemplates::cppSubclass(scene, entity, classOrModuleName, headerFileName)
         : ScriptTemplates::cppScript(classOrModuleName, headerFileName);
-    write(headerPath, files.header);
-    write(sourcePath, files.source);
+    return write(headerPath, files.header) && write(sourcePath, files.source);
 }
 
-void ScriptCreateDialog::finalizeCreation(const fs::path& headerPath,
+bool ScriptCreateDialog::finalizeCreation(const fs::path& headerPath,
                                           const fs::path& sourcePath,
                                           const std::string& name) {
     const bool isLua = m_creationKind == CreationKind::LUA;
-    const ScriptType type = isLua ? ScriptType::LUA : ScriptType::CPP;
+    const ScriptType type = isLua ? ScriptType::LUA : m_creationKind == CreationKind::CSHARP ? ScriptType::CSHARP : ScriptType::CPP;
 
-    writeFiles(headerPath, sourcePath, name, m_creationKind);
+    if (!writeTemplateFiles(m_scene, m_entity, headerPath, sourcePath, name, m_creationKind)) {
+        m_attachError = "Could not write the script files in " + FileUtils::pathToUtf8(sourcePath.parent_path()) + ".";
+        return false;
+    }
 
     if (m_onCreate) {
         // Lua entries resolve through "lua://", C++ sources stay project-relative
@@ -148,6 +148,7 @@ void ScriptCreateDialog::finalizeCreation(const fs::path& headerPath,
     }
 
     m_isOpen = false;
+    return true;
 }
 
 bool ScriptCreateDialog::finalizeAttachment(const fs::path& headerPath,
@@ -192,7 +193,15 @@ void ScriptCreateDialog::selectExistingFile(bool selectHeader) {
 }
 
 void ScriptCreateDialog::acceptExistingFile(const fs::path& selectedPath, bool selectHeader) {
-    if (Util::isLuaFile(selectedPath.string())) {
+    if (Util::isCSharpFile(selectedPath.string())) {
+        if (selectHeader || !Util::isInsidePath(selectedPath, m_projectPath)) {
+            m_attachError = "Select a C# source file inside the project.";
+            return;
+        }
+        m_existingScriptType = ScriptType::CSHARP;
+        m_existingSourcePath = selectedPath;
+        m_existingHeaderPath.clear();
+    } else if (Util::isLuaFile(selectedPath.string())) {
         if (selectHeader) {
             m_attachError = "Select a C++ header (.h, .hh, .hpp, or .hxx).";
             return;
@@ -225,7 +234,7 @@ void ScriptCreateDialog::acceptExistingFile(const fs::path& selectedPath, bool s
         m_existingSourcePath = selectedPath;
         m_existingHeaderPath = findCompanion(selectedPath, {".h", ".hpp", ".hh", ".hxx"});
     } else {
-        m_attachError = "Select a Lua or C++ script file.";
+        m_attachError = "Select a C# or C++ script file.";
         return;
     }
 
@@ -264,6 +273,9 @@ void ScriptCreateDialog::show() {
     }
     EditorModal::message("Add a new or existing script to the selected GameObject");
     EditorModal::error(m_attachError);
+    if (!m_attachExisting && !m_attachError.empty()) {
+        ImGui::TextWrapped("%s", m_attachError.c_str());
+    }
 
     {
         int source = m_attachExisting ? 1 : 0;
@@ -286,22 +298,23 @@ void ScriptCreateDialog::show() {
         ImGui::Spacing();
         ImGui::TextUnformatted("Template");
         {
-            std::string kind = m_creationKind == CreationKind::CPP_SUBCLASS ? "C++ Subclass" : m_creationKind == CreationKind::CPP_SCRIPT_CLASS ? "C++ Script Class" : "Lua Script";
-            if (EditorModal::enumField("template", kind, {"C++ Subclass", "C++ Script Class", "Lua Script"})) {
-                m_creationKind = kind == "C++ Subclass" ? CreationKind::CPP_SUBCLASS : kind == "C++ Script Class" ? CreationKind::CPP_SCRIPT_CLASS : CreationKind::LUA;
+            std::string kind = m_creationKind == CreationKind::CPP_SUBCLASS ? "C++ Subclass" : m_creationKind == CreationKind::CPP_SCRIPT_CLASS ? "C++ Script Class" : "C# Script";
+            if (EditorModal::enumField("template", kind, {"C# Script", "C++ Subclass", "C++ Script Class"})) {
+                m_creationKind = kind == "C++ Subclass" ? CreationKind::CPP_SUBCLASS : kind == "C++ Script Class" ? CreationKind::CPP_SCRIPT_CLASS : CreationKind::CSHARP;
             }
         }
+        ImGui::RadioButton("C# Script", (int*)&m_creationKind, (int)CreationKind::CSHARP);
         ImGui::RadioButton("C++ Subclass", (int*)&m_creationKind, (int)CreationKind::CPP_SUBCLASS);
         ImGui::SetItemTooltip("C++ class deriving from the GameObject's engine class, with its methods at hand.");
         ImGui::RadioButton("C++ Script Class", (int*)&m_creationKind, (int)CreationKind::CPP_SCRIPT_CLASS);
         ImGui::SetItemTooltip("Standalone C++ script, like a MonoBehaviour.");
-        ImGui::RadioButton("Lua Script", (int*)&m_creationKind, (int)CreationKind::LUA);
     }
 
     bool isLua = m_attachExisting
         ? m_existingScriptType == ScriptType::LUA
         : m_creationKind == CreationKind::LUA;
-    bool isCpp = !isLua;
+    bool isCpp = m_attachExisting ? m_existingScriptType == ScriptType::CPP :
+        (m_creationKind == CreationKind::CPP_SUBCLASS || m_creationKind == CreationKind::CPP_SCRIPT_CLASS);
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -320,7 +333,7 @@ void ScriptCreateDialog::show() {
                 const fs::path given = FileUtils::pathFromUtf8(script);
                 acceptExistingFile(given.is_absolute() ? given : m_projectPath / given, false);
                 isLua = m_existingScriptType == ScriptType::LUA;
-                isCpp = !isLua;
+                isCpp = m_existingScriptType == ScriptType::CPP;
                 rootPath = isLua ? m_luaPath : m_projectPath;
             }
         }
@@ -328,7 +341,7 @@ void ScriptCreateDialog::show() {
         if (ImGui::Button(ICON_FA_FOLDER_OPEN " Browse Script...##existing_source")) {
             selectExistingFile(false);
             isLua = m_existingScriptType == ScriptType::LUA;
-            isCpp = !isLua;
+            isCpp = m_existingScriptType == ScriptType::CPP;
             rootPath = isLua ? m_luaPath : m_projectPath;
         }
         ImGui::SameLine();
@@ -374,7 +387,7 @@ void ScriptCreateDialog::show() {
         if (!m_existingSourcePath.empty() || !m_existingHeaderPath.empty()) {
             const char* detectedType = m_existingScriptType == ScriptType::LUA
                 ? "Lua Script"
-                : "C++ Script";
+                : isCpp ? "C++ Script" : "C# Script";
             ImGui::TextDisabled("Detected type: %s", detectedType);
         }
     } else {
@@ -421,13 +434,14 @@ void ScriptCreateDialog::show() {
         : (isLua ? "Module Name" : "Class Name"));
     ImGui::SetNextItemWidth(-1);
 
+    const bool managedTypeName = m_attachExisting && m_existingScriptType == ScriptType::CSHARP;
     bool enterPressed = EditorModal::inputText(
         "##basename",
         "name",
         m_baseNameBuffer,
         sizeof(m_baseNameBuffer),
-        ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCharFilter,
-        classNameCharFilter
+        ImGuiInputTextFlags_EnterReturnsTrue | (managedTypeName ? ImGuiInputTextFlags_None : ImGuiInputTextFlags_CallbackCharFilter),
+        managedTypeName ? nullptr : classNameCharFilter
     );
 
     // When editing finishes (Enter or focus loss), snap the field to the exact
@@ -435,7 +449,7 @@ void ScriptCreateDialog::show() {
     // leading-digit prefix and keyword escaping that the per-char filter can't do
     // mid-typing - so the visible name stays identical to the created class name.
     // Skipped while empty so an intentionally cleared field isn't auto-refilled.
-    if (ImGui::IsItemDeactivatedAfterEdit() && m_baseNameBuffer[0] != '\0') {
+    if (!managedTypeName && ImGui::IsItemDeactivatedAfterEdit() && m_baseNameBuffer[0] != '\0') {
         std::string canonical = sanitizeClassName(m_baseNameBuffer);
         strncpy(m_baseNameBuffer, canonical.c_str(), sizeof(m_baseNameBuffer) - 1);
         m_baseNameBuffer[sizeof(m_baseNameBuffer) - 1] = '\0';
@@ -443,7 +457,7 @@ void ScriptCreateDialog::show() {
 
     std::string baseName = m_baseNameBuffer;
     bool hasBase = !baseName.empty();
-    std::string name = sanitizeClassName(baseName);
+    std::string name = managedTypeName ? baseName : sanitizeClassName(baseName);
 
     fs::path headerPath;
     fs::path sourcePath;
@@ -452,6 +466,8 @@ void ScriptCreateDialog::show() {
         sourcePath = fs::path(m_selectedPath) / (name + ".cpp");
     } else if (isLua) {
         sourcePath = fs::path(m_selectedPath) / (name + ".lua");
+    } else if (!m_attachExisting) {
+        sourcePath = fs::path(m_selectedPath) / (name + ".cs");
     }
 
     std::error_code existsEc;
@@ -466,7 +482,7 @@ void ScriptCreateDialog::show() {
         std::error_code sourceEc;
         const bool validSource = fs::is_regular_file(m_existingSourcePath, sourceEc) &&
             (isLua ? Util::isLuaFile(m_existingSourcePath.string())
-                   : Util::isSourceFile(m_existingSourcePath.string())) &&
+                   : isCpp ? Util::isSourceFile(m_existingSourcePath.string()) : Util::isCSharpFile(m_existingSourcePath.string())) &&
             Util::isInsidePath(m_existingSourcePath, rootPath);
         std::error_code headerEc;
         const bool validHeader = !isCpp ||
@@ -530,8 +546,7 @@ void ScriptCreateDialog::show() {
                 m_attachError.clear();
                 ImGui::OpenPopup("Script Files Already Exist");
             } else {
-                finalizeCreation(headerPath, sourcePath, name);
-                ImGui::CloseCurrentPopup();
+                if (finalizeCreation(headerPath, sourcePath, name)) ImGui::CloseCurrentPopup();
             }
         }
         ImGui::EndDisabled();
@@ -570,7 +585,7 @@ void ScriptCreateDialog::show() {
             if (EditorModal::button("Add Existing", "yes", ImVec2(alertButtonWidth, 0))) {
                 const ScriptType type = m_creationKind == CreationKind::LUA
                     ? ScriptType::LUA
-                    : ScriptType::CPP;
+                    : isCpp ? ScriptType::CPP : ScriptType::CSHARP;
                 const std::string attachName = type == ScriptType::CPP
                     ? inferClassName(headerPath, name)
                     : name;
@@ -581,8 +596,7 @@ void ScriptCreateDialog::show() {
         }
 
         if (EditorModal::button("Replace Files", allCreateFilesExist ? "no" : "yes", ImVec2(alertButtonWidth, 0))) {
-            finalizeCreation(headerPath, sourcePath, name);
-            ImGui::CloseCurrentPopup();
+            if (finalizeCreation(headerPath, sourcePath, name)) ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
         if (EditorModal::button("Cancel", "cancel", ImVec2(alertButtonWidth, 0))) {

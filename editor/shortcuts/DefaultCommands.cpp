@@ -149,7 +149,7 @@ std::vector<CommandDef> jasperengine::editor::defaultCommands() {
 
     b.group = "Assets";
     b.menu("assets.createFolder", "Create Folder", AppMenuCommand::AssetsCreateFolder);
-    b.menu("assets.createLuaScript", "Create Lua Script", AppMenuCommand::AssetsCreateLuaScript);
+    b.menu("assets.createCSharpScript", "Create C# Script", AppMenuCommand::AssetsCreateCSharpScript);
     b.menu("assets.createCppScript", "Create C++ Script", AppMenuCommand::AssetsCreateCppScript);
     b.menu("assets.createCppSource", "Create C++ Source File", AppMenuCommand::AssetsCreateCppSource);
     b.menu("assets.createCppHeader", "Create C++ Header File", AppMenuCommand::AssetsCreateCppHeader);
@@ -315,7 +315,7 @@ std::vector<CommandDef> jasperengine::editor::defaultCommands() {
     b.menu("window.layouts.reset", "Reset Layout", AppMenuCommand::ResetLayout).description = "Apply the Default layout";
 
     b.group = "Help";
-    b.menu("help.about", "About JasperEngine", AppMenuCommand::About);
+    b.menu("help.about", "About AllioEngine", AppMenuCommand::About);
     b.menu("help.documentation", "Documentation", AppMenuCommand::Documentation, C::Global, "F1");
     b.menu("help.keyboardShortcuts", "Keyboard Shortcuts", AppMenuCommand::KeyboardShortcuts);
     b.menu("help.reportIssue", "Report an Issue...", AppMenuCommand::ReportIssue);

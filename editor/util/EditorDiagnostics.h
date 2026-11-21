@@ -41,7 +41,7 @@ namespace jasperengine::editor {
         static bool isNoticeOpen();
         // Writes `handled` and closes the notice when it is that report's; false: unknown id
         static bool dismiss(const std::string& id);
-        // "JasperEngine closed unexpectedly last time (SIGSEGV at 14:32). A crash report was saved."
+        // "AllioEngine closed unexpectedly last time (SIGSEGV at 14:32). A crash report was saved."
         static std::string noticeText(const diag::crash::ReportInfo& report);
 
         // Each frame on the main thread: recovered stalls become a Console warning and the

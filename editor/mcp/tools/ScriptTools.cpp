@@ -150,7 +150,7 @@ std::string assetType(const fs::path& path) {
 
 bool isTextFile(const fs::path& path) {
     static const std::set<std::string> text = {
-        ".lua", ".cpp", ".cc", ".cxx", ".c", ".h", ".hh", ".hpp", ".hxx", ".inl",
+        ".cs", ".lua", ".cpp", ".cc", ".cxx", ".c", ".h", ".hh", ".hpp", ".hxx", ".inl",
         ".material", ".scene", ".prefab", ".yaml", ".yml", ".json", ".txt", ".md", ".csv", ".ini", ".cfg", ".bitmapfont",
         ".glsl", ".vert", ".frag", ".hlsl", ".cmake", ".xml", ".gltf", ".obj", ".mtl", ".svg", ".tsx", ".tmx",
         ".html", ".htm", ".css", ".rml", ".rcss", ".anim", ".poseanim", ".vat", ".mask", ".controller", ".shake", ".titleart", ".soundevent", ".particles"
@@ -551,7 +551,7 @@ Json scriptEntryJson(Project* project, SceneProject* sceneProject, Entity entity
                      bool withProperties) {
     Json item = {
         {"index", index},
-        {"type", entry.type == ScriptType::LUA ? "lua" : "cpp"},
+        {"type", entry.type == ScriptType::CSHARP ? "csharp" : entry.type == ScriptType::LUA ? "lua" : "cpp"},
         {"class_name", entry.className},
         {"path", entryPath(project, entry)},
         {"enabled", entry.enabled}
@@ -679,14 +679,17 @@ void createScriptTool(const CallPtr& call) {
     Project* project = call->ctx().project();
     const std::string kind = args.value("kind", "");
     ScriptCreateDialog::CreationKind creation;
-    if (kind == "lua") creation = ScriptCreateDialog::CreationKind::LUA;
+    if (kind == "csharp") creation = ScriptCreateDialog::CreationKind::CSHARP;
+    else if (kind == "lua") creation = ScriptCreateDialog::CreationKind::LUA;
     else if (kind == "cpp_script") creation = ScriptCreateDialog::CreationKind::CPP_SCRIPT_CLASS;
     else if (kind == "cpp_subclass") creation = ScriptCreateDialog::CreationKind::CPP_SUBCLASS;
     else {
-        call->fail("kind must be lua, cpp_script (a ScriptBase subclass) or cpp_subclass (a subclass of the GameObject's own class).");
+        call->fail("kind must be csharp, cpp_script (a ScriptBase subclass) or cpp_subclass (a subclass of the GameObject's own class).");
         return;
     }
     const bool lua = creation == ScriptCreateDialog::CreationKind::LUA;
+    const bool managed = creation == ScriptCreateDialog::CreationKind::CSHARP;
+    const bool cpp = !managed && !lua;
 
     const std::string requested = args.value("name", "");
     if (requested.empty()) {
@@ -714,8 +717,8 @@ void createScriptTool(const CallPtr& call) {
     }
     dir = dir.lexically_normal();
 
-    const fs::path header = lua ? fs::path() : dir / (name + ".h");
-    const fs::path source = dir / (name + (lua ? ".lua" : ".cpp"));
+    const fs::path header = !cpp ? fs::path() : dir / (name + ".h");
+    const fs::path source = dir / (name + (managed ? ".cs" : lua ? ".lua" : ".cpp"));
     if (lua && !Util::isInsidePath(source, project->getLuaPath())) {
         call->fail("Lua scripts must be inside the project's Lua directory \"" + luaRootRelative(project) +
                    "\"; pass a directory inside it (or omit directory).");
@@ -733,7 +736,9 @@ void createScriptTool(const CallPtr& call) {
 
     // The editor's templates (the Project window and the Inspector write the same)
     std::string headerText, sourceText;
-    if (lua) {
+    if (managed) {
+        sourceText = ScriptTemplates::csharp(name);
+    } else if (lua) {
         sourceText = ScriptTemplates::lua(name);
     } else {
         const std::string headerFileName = FileUtils::pathToUtf8(header.filename());
@@ -743,18 +748,18 @@ void createScriptTool(const CallPtr& call) {
         headerText = files.header;
         sourceText = files.source;
     }
-    if (lua && args.contains("content") && args["content"].is_string()) sourceText = args["content"].get<std::string>();
-    if (!lua && args.contains("header_content") && args["header_content"].is_string()) headerText = args["header_content"].get<std::string>();
-    if (!lua && args.contains("source_content") && args["source_content"].is_string()) sourceText = args["source_content"].get<std::string>();
-    if (lua && (args.contains("header_content") || args.contains("source_content"))) {
-        warnings.push_back("header_content/source_content are for C++ scripts; a Lua script takes content.");
+    if (!cpp && args.contains("content") && args["content"].is_string()) sourceText = args["content"].get<std::string>();
+    if (cpp && args.contains("header_content") && args["header_content"].is_string()) headerText = args["header_content"].get<std::string>();
+    if (cpp && args.contains("source_content") && args["source_content"].is_string()) sourceText = args["source_content"].get<std::string>();
+    if (!cpp && (args.contains("header_content") || args.contains("source_content"))) {
+        warnings.push_back("header_content/source_content are for C++ scripts; pass content for a single-file script.");
     }
-    if (!lua && args.contains("content")) {
-        warnings.push_back("content is for Lua scripts; a C++ script takes header_content and source_content.");
+    if (cpp && args.contains("content")) {
+        warnings.push_back("content is for single-file scripts; a C++ script takes header_content and source_content.");
     }
 
     std::vector<WriteFilesCmd::Item> items;
-    if (!lua) items.push_back({header, headerText});
+    if (cpp) items.push_back({header, headerText});
     items.push_back({source, sourceText});
     if (!writeFilesUndoable(call->ctx(), std::move(items), error)) {
         call->fail(error);
@@ -766,12 +771,12 @@ void createScriptTool(const CallPtr& call) {
         {"class_name", name},
         {"path", projectRelative(project, source)}
     };
-    if (!lua) data["header_path"] = projectRelative(project, header);
+    if (cpp) data["header_path"] = projectRelative(project, header);
     Json problems = Json::array();
     if (lua) {
         ProjectChecks::LuaSyntax syntax = ProjectChecks::checkLuaSyntax(sourceText, projectRelative(project, source));
         if (!syntax.ok) problems.push_back({{"path", projectRelative(project, source)}, {"line", syntax.line}, {"message", syntax.message}});
-    } else {
+    } else if (cpp) {
         const auto found = ScriptParser::findScriptClassNameFromString(headerText);
         if (!found || *found != name) {
             warnings.push_back("The header doesn't declare a script class named " + name +
@@ -779,10 +784,10 @@ void createScriptTool(const CallPtr& call) {
         }
     }
 
-    std::string text = "Created " + projectRelative(project, source) + (lua ? "" : " and " + projectRelative(project, header)) + ".";
+    std::string text = "Created " + projectRelative(project, source) + (!cpp ? "" : " and " + projectRelative(project, header)) + ".";
     if (attach) {
         ScriptEntry entry;
-        if (!makeEntry(project, lua ? source : header, name, entry, warnings, error)) {
+        if (!makeEntry(project, cpp ? header : source, name, entry, warnings, error)) {
             call->fail(text + " Not attached: " + error, data);
             return;
         }
@@ -795,10 +800,10 @@ void createScriptTool(const CallPtr& call) {
         data["entity"] = McpRefs::entityJson(target.scene, target.entity);
         data["script"] = scriptEntryJson(project, target.scene, target.entity, index, component.scripts[index], true);
         text += " Attached to " + McpRefs::entityPath(target.scene, target.entity) + " as script " + std::to_string(index) + ".";
-    } else if (!lua) {
+    } else if (cpp) {
         text += " Not attached: a C++ file compiles only when attached to a GameObject or inside a script directory.";
     }
-    if (!lua) text += " Check it compiles with compile_scripts.";
+    if (cpp) text += " Check it compiles with compile_scripts.";
     if (!problems.empty()) text += " SYNTAX ERROR: " + problems[0]["message"].get<std::string>() + " (line " + std::to_string(problems[0]["line"].get<int>()) + ").";
     data["problems"] = problems;
     if (!warnings.empty()) data["warnings"] = warnings;
@@ -957,7 +962,8 @@ void updateScriptEntryTool(const CallPtr& call) {
         scripts[index].className = repointed.className;
         changed = true;
     } else if (args.contains("class_name") && args["class_name"].is_string()) {
-        const std::string className = Factory::toIdentifier(args["class_name"].get<std::string>());
+        const std::string requested = args["class_name"].get<std::string>();
+        const std::string className = scripts[index].type == ScriptType::CSHARP ? requested : Factory::toIdentifier(requested);
         if (scripts[index].type == ScriptType::LUA) {
             call->fail("A Lua script's class name is its file name; rename the file (move_asset) and pass path instead.");
             return;
@@ -1112,7 +1118,7 @@ void listScriptsTool(const CallPtr& call) {
         Json files = Json::array();
         for (const auto& [rel, stamp] : scanProject(project)) {
             (void)stamp;
-            if (!(Util::isLuaFile(rel) || Util::isHeaderFile(rel) || Util::isSourceFile(rel))) continue;
+            if (!(Util::isCSharpFile(rel) || Util::isLuaFile(rel) || Util::isHeaderFile(rel) || Util::isSourceFile(rel))) continue;
             files.push_back({{"path", rel}, {"attached_in_loaded_scenes", attached.count(rel) > 0}});
         }
         data["files"] = files;
@@ -1595,13 +1601,13 @@ void registerScriptTools(McpRegistry& registry) {
         tool.title = "Create Script";
         tool.description =
             "Create a script from the engine template, optionally attached to entity; then edit the file "
-            "yourself. kind lua: module table in the Lua dir; cpp_script: ScriptBase subclass; cpp_subclass: "
-            "subclass of the GameObject's class (e.g. Mesh), needs entity. content (Lua) or header_content + "
+            "yourself. csharp: AllioEngine.Behaviour; cpp_script: ScriptBase; cpp_subclass: "
+            "subclass of the GameObject's class (e.g. Mesh), needs entity. content (C#) or header_content + "
             "source_content (C++) replace the template.";
         tool.inputSchema = object({
-            {"kind", stringEnum("", {"lua", "cpp_script", "cpp_subclass"})},
+            {"kind", stringEnum("", {"csharp", "cpp_script", "cpp_subclass", "lua"})},
             {"name", string("Class/module name = file name.")},
-            {"directory", assetPath("Default: Lua dir, or \"scripts\" for C++.")},
+            {"directory", assetPath("Default: scripts (legacy Lua: Lua dir).")},
             {"content", string("")},
             {"header_content", string("")},
             {"source_content", string("")},
@@ -1619,7 +1625,7 @@ void registerScriptTools(McpRegistry& registry) {
         tool.name = "attach_script";
         tool.title = "Attach Script";
         tool.description =
-            "Attach a script file to a GameObject (adds the Script component if needed). path: a .lua in the Lua "
+            "Attach a script file to a GameObject (adds the Script component if needed). path: a .cs file, a legacy .lua in the Lua "
             "dir, or a C++ script's .h or .cpp (pair side by side). Fails if already attached.";
         tool.inputSchema = object({
             {"scene", sceneRef()},

@@ -249,7 +249,7 @@ std::vector<const SoundManifestClip*> SoundLibrary::match(const std::string& ref
     const std::string pattern = ref.substr(std::string(PREFIX).size());
     auto unknown = [&](const std::string& what) {
         error = "unknown starter library " + what + ": use library:<type>/<name>, library:<type>/* or library:*; types: " + joined(types()) +
-                " (list the ids with jasperengine-editor sound-library list)";
+                " (list the ids with allioengine-editor sound-library list)";
     };
     if (pattern == "*") {
         for (const SoundManifestClip& clip : d.available) out.push_back(&clip);

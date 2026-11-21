@@ -202,7 +202,7 @@ def editor_version() -> str:
         command = harness.editor_command()
     except ImportError:  # plain python3, without the harness's packages
         command = shlex.split(os.environ["JASPER_EDITOR"]) if os.environ.get("JASPER_EDITOR") else \
-            [str(REPO / "build" / "linux" / "editor-install" / "bin" / "jasperengine-editor")]
+            [str(REPO / "build" / "linux" / "editor-install" / "bin" / "allioengine-editor")]
     with tempfile.TemporaryDirectory(prefix="jasper-build-cache-home-") as home:
         env = dict(os.environ, HOME=home)
         env.pop("JASPER_PLAYERS_DIR", None)

@@ -754,8 +754,8 @@ mcp-tests)
     [[ "$SUITE" == all && -z "${JASPER_FIXTURE:-}" ]] && { echo "MCP_SUITE=all needs the fixture project: JASPER_FIXTURE, build/fixture-unity or ~/je/fixture-unity" >&2; exit 1; }
     # (SANITIZE: the install of that build, `SANITIZE=... tools/build.sh linux`; TSan's start needs its wrapper)
     EDITOR_INSTALL="build/linux/editor$SANITIZE_SUFFIX-install"
-    [[ -x "$ROOT/$EDITOR_INSTALL/bin/jasperengine-editor" ]] || { echo "No editor at $EDITOR_INSTALL; run ${SANITIZE:+SANITIZE=$SANITIZE }tools/build.sh linux" >&2; exit 1; }
-    [[ -n "$SANITIZE_SUFFIX" ]] && ENV_FLAGS+=(-e "JASPER_EDITOR=${TEST_WRAP:+$TEST_WRAP }/src/$EDITOR_INSTALL/bin/jasperengine-editor")
+    [[ -x "$ROOT/$EDITOR_INSTALL/bin/allioengine-editor" ]] || { echo "No editor at $EDITOR_INSTALL; run ${SANITIZE:+SANITIZE=$SANITIZE }tools/build.sh linux" >&2; exit 1; }
+    [[ -n "$SANITIZE_SUFFIX" ]] && ENV_FLAGS+=(-e "JASPER_EDITOR=${TEST_WRAP:+$TEST_WRAP }/src/$EDITOR_INSTALL/bin/allioengine-editor")
     # (no leak check here: an editor's exit reports what the GL driver it unloaded kept, frames of an unmapped
     # module that no suppression can name; the unit tests hold the leak check)
     [[ -n "$SANITIZE_SUFFIX" ]] && ENV_FLAGS+=(-e "ASAN_OPTIONS=abort_on_error=1:detect_leaks=0:strict_string_checks=1")

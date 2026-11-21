@@ -16,7 +16,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 [[ -d build/players/android-universal-gles3-release ]] || { echo "no android-universal-gles3-release runtime in build/players" >&2; exit 2; }
-[[ -x build/linux/editor-install/bin/jasperengine-editor ]] || { echo "no editor install: tools/build.sh linux" >&2; exit 2; }
+[[ -x build/linux/editor-install/bin/allioengine-editor ]] || { echo "no editor install: tools/build.sh linux" >&2; exit 2; }
 OUT=build/android-ac7
 rm -rf "$OUT"
 mkdir -p "$OUT/stubs"
@@ -39,7 +39,7 @@ done
 tools/build.sh exec android bash -euo pipefail -c "
     export ANDROID_NDK_HOME=/nonexistent ANDROID_NDK_ROOT=/nonexistent PATH=/src/$OUT/stubs:\$PATH
     for format in aab apk-per-abi apk; do
-        dbus-run-session -- env JASPER_PLAYERS_DIR=/src/build/players build/linux/editor-install/bin/jasperengine-editor build \
+        dbus-run-session -- env JASPER_PLAYERS_DIR=/src/build/players build/linux/editor-install/bin/allioengine-editor build \
             --project $OUT/project --platform android --method prebuilt --android-format \$format --out $OUT/\$format > $OUT/\$format.log 2>&1 \
             || { tail -n 30 $OUT/\$format.log; echo \"FAIL: the \$format build\"; exit 1; }
         grep -q '^method: prebuilt' $OUT/\$format.log || { echo \"FAIL: \$format was not built with the prebuilt player\"; exit 1; }

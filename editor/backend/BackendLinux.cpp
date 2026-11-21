@@ -1002,8 +1002,8 @@ NativeWindow* createNativeWindow(int x, int y, int width, int height,
     configureXdnd(result);
 
     XClassHint classHint{};
-    classHint.res_name = const_cast<char*>("jasperengine-editor");
-    classHint.res_class = const_cast<char*>("JasperEngineEditor");
+    classHint.res_name = const_cast<char*>("allioengine-editor");
+    classHint.res_class = const_cast<char*>("AllioEngineEditor");
     XSetClassHint(backend->display, result->handle, &classHint);
 
     // Popups and utility viewports show an icon nowhere, so they skip it.
@@ -2354,7 +2354,7 @@ void createViewport(ImGuiViewport* viewport) {
     viewport->PlatformUserData = window;
     viewport->PlatformHandle = window;
     viewport->PlatformHandleRaw = reinterpret_cast<void*>(static_cast<uintptr_t>(window->handle));
-    setWindowTitle(window, "JasperEngine");
+    setWindowTitle(window, "AllioEngine");
 }
 
 void destroyViewport(ImGuiViewport* viewport) {
@@ -2844,7 +2844,7 @@ bool initializeX11(editor::App& app) {
         return false;
     }
     backend->mainWindow->owned = false;
-    setWindowTitle(backend->mainWindow, "JasperEngine");
+    setWindowTitle(backend->mainWindow, "AllioEngine");
     XMapWindow(backend->display, backend->mainWindow->handle);
 
     backend->mouseCursors[ImGuiMouseCursor_Arrow] = XCreateFontCursor(backend->display, XC_left_ptr);

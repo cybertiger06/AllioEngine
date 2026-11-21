@@ -13,7 +13,7 @@ run opens new editors; the reported value is the median of the runs.
     ... gpu_campaign.py post                                                   # S13 presets (desktop)
     ... gpu_campaign.py particles                                              # S20 R23
     ... gpu_campaign.py lighting  [--size 1920 1080]                            # S57 R7
-    ... --editor build/linux/editor-vulkan-install/bin/jasperengine-editor     # another build
+    ... --editor build/linux/editor-vulkan-install/bin/allioengine-editor     # another build
 
 On a GPU host: tools/gpu/xorg-headless.sh start, then inside the image `. tools/gpu/env.sh` and
 JASPER_XVFB=none (the editor on the headless NVIDIA X server; Vulkan needs only env.sh).

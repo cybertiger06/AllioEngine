@@ -371,9 +371,9 @@ jobs:
         with:
           name: release-assets-linux
           path: |
-            dist/JasperEngine-${{ inputs.version }}-linux-x86_64.AppImage
-            dist/JasperEngine-${{ inputs.version }}-linux-x86_64.AppImage.zsync
-            dist/JasperEngine-${{ inputs.version }}-linux-x86_64.zip
+            dist/AllioEngine-${{ inputs.version }}-linux-x86_64.AppImage
+            dist/AllioEngine-${{ inputs.version }}-linux-x86_64.AppImage.zsync
+            dist/AllioEngine-${{ inputs.version }}-linux-x86_64.zip
           if-no-files-found: error
           retention-days: 14
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -437,12 +437,12 @@ jobs:
         run: tools/ci/windows.sh editor
       - name: Package the zip
         run: tools/ci/windows.sh package "$JASPERENGINE_VERSION"
-      - name: Launch check (the zip's jasperengine-editor-cmd)
-        run: tools/ci/windows.sh check-cli "dist/JasperEngine-$JASPERENGINE_VERSION-windows-x64.zip"
+      - name: Launch check (the zip's allioengine-editor-cmd)
+        run: tools/ci/windows.sh check-cli "dist/AllioEngine-$JASPERENGINE_VERSION-windows-x64.zip"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-assets-windows
-          path: dist/JasperEngine-${{ inputs.version }}-windows-x64.zip
+          path: dist/AllioEngine-${{ inputs.version }}-windows-x64.zip
           if-no-files-found: error
           retention-days: 14
       - uses: ./.github/actions/report
@@ -484,13 +484,13 @@ jobs:
       - name: Package the zip and the dmg (ad-hoc signed)
         run: tools/ci/macos.sh package "$JASPERENGINE_VERSION"
       - name: Launch check (the zip's signed app)
-        run: tools/ci/macos.sh check-cli "dist/JasperEngine-$JASPERENGINE_VERSION-macos-universal.zip"
+        run: tools/ci/macos.sh check-cli "dist/AllioEngine-$JASPERENGINE_VERSION-macos-universal.zip"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-assets-macos
           path: |
-            dist/JasperEngine-${{ inputs.version }}-macos-universal.zip
-            dist/JasperEngine-${{ inputs.version }}-macos-universal.dmg
+            dist/AllioEngine-${{ inputs.version }}-macos-universal.zip
+            dist/AllioEngine-${{ inputs.version }}-macos-universal.dmg
           if-no-files-found: error
           retention-days: 14
       - uses: ./.github/actions/report

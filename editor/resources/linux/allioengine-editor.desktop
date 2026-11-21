@@ -1,14 +1,14 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=JasperEngine
+Name=AllioEngine
 GenericName=Game Engine Editor
-Comment=Build cross-platform 2D/3D games with Lua or C++
-Exec=jasperengine-editor
-Icon=jasperengine-editor
+Comment=Build cross-platform 2D/3D games with C# scripts
+Exec=allioengine-editor
+Icon=allioengine-editor
 Terminal=false
 Categories=Development;IDE;
 Keywords=game;engine;3d;2d;editor;
 StartupNotify=true
 # Matches the WM_CLASS set in BackendLinux.cpp.
-StartupWMClass=JasperEngineEditor
+StartupWMClass=AllioEngineEditor

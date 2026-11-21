@@ -6,9 +6,9 @@
 # `ui-effects --validate` (both forms compiled for glcore, each manifest against the shader's
 # reflection) must pass.
 #
-#   tools/htmlui/check_effect_shaders.sh [--editor <jasperengine-editor>] [--keep]
+#   tools/htmlui/check_effect_shaders.sh [--editor <allioengine-editor>] [--keep]
 #
-# The editor defaults to build/linux/editor-install/bin/jasperengine-editor of this checkout,
+# The editor defaults to build/linux/editor-install/bin/allioengine-editor of this checkout,
 # else of the main checkout (a worktree's). The output goes to a temporary directory, removed
 # afterwards unless --keep. Runs on the host (no display needed).
 set -euo pipefail
@@ -26,10 +26,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$EDITOR" ]]; then
-    EDITOR="$ROOT/build/linux/editor-install/bin/jasperengine-editor"
+    EDITOR="$ROOT/build/linux/editor-install/bin/allioengine-editor"
     if [[ ! -x "$EDITOR" ]]; then
         MAIN="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null | xargs -r dirname)"
-        [[ -n "$MAIN" ]] && EDITOR="$MAIN/build/linux/editor-install/bin/jasperengine-editor"
+        [[ -n "$MAIN" ]] && EDITOR="$MAIN/build/linux/editor-install/bin/allioengine-editor"
     fi
 fi
 if [[ ! -x "$EDITOR" ]]; then

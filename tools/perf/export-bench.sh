@@ -16,7 +16,7 @@ set -euo pipefail
 LABEL="$1"
 OUT="build/bench/$LABEL/export"
 RESULTS="build/bench/$LABEL/results.jsonl"
-EDITOR=build/linux/editor-install/bin/jasperengine-editor
+EDITOR=build/linux/editor-install/bin/allioengine-editor
 [[ -x "$EDITOR" ]] || { echo "no editor at $EDITOR: run tools/build.sh linux first" >&2; exit 1; }
 
 rm -rf "$OUT"

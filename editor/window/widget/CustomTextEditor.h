@@ -25,6 +25,7 @@ namespace jasperengine::editor {
     enum class SyntaxLanguage {
         None,
         Cpp,
+        CSharp,
         Lua,
         CMake,
         Html,

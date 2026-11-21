@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 """The manual Aseprite compatibility gate of S44 (docs/specs/S44-aseprite-import.md AC5, R43).
 
-    JASPER_ASEPRITE=<aseprite or its wrapper> [JASPER_EDITOR=<jasperengine-editor>] \\
+    JASPER_ASEPRITE=<aseprite or its wrapper> [JASPER_EDITOR=<allioengine-editor>] \\
         python3 tools/pixelart/aseprite_compat.py [extra dirs...] [--json report.json] [-j N]
 
 For every .aseprite / .ase under editor/tests/fixtures/aseprite (recursively) and the extra dirs:
@@ -44,7 +44,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 FIXTURES = REPO / "editor" / "tests" / "fixtures" / "aseprite"
-DEFAULT_EDITOR = REPO / "build" / "linux" / "editor-install" / "bin" / "jasperengine-editor"
+DEFAULT_EDITOR = REPO / "build" / "linux" / "editor-install" / "bin" / "allioengine-editor"
 
 # ---------------------------------------------------------------------------------------- PNG
 

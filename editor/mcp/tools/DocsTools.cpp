@@ -162,7 +162,7 @@ const std::vector<Doc>& docs() {
 }
 
 std::string docsIndex() {
-    std::string text = "# JasperEngine agent reference\n\nRead with resources/read:\n\n";
+    std::string text = "# AllioEngine agent reference\n\nRead with resources/read:\n\n";
     text += "- `jasper://guide`: the agent guide (same as the initialize instructions)\n";
     for (const Doc& doc : docs()) {
         text += "- `jasper://docs/" + doc.name + "`: " + doc.title +
@@ -517,8 +517,8 @@ void registerDocsTools(McpRegistry& registry) {
         ResourceDef guide;
         guide.uri = "jasper://guide";
         guide.name = "guide";
-        guide.title = "JasperEngine agent guide";
-        guide.description = "How to drive the JasperEngine editor through MCP: the initialize instructions, plus the list of "
+        guide.title = "AllioEngine agent guide";
+        guide.description = "How to drive the AllioEngine editor through MCP: the initialize instructions, plus the list of "
                             "reference documents.";
         guide.mimeType = "text/markdown";
         guide.read = [](const std::string& uri) {
@@ -731,9 +731,9 @@ void registerDocsTools(McpRegistry& registry) {
             PromptResult result;
             const std::string idea = args.count("idea") ? args.at("idea") : "a small arcade game";
             const std::string language = args.count("language") && args.at("language") == "cpp" ? "C++" : "Lua";
-            result.description = "Build " + idea + " in JasperEngine";
+            result.description = "Build " + idea + " in AllioEngine";
             std::string text =
-                "Build " + idea + " as a playable 2D game in the open JasperEngine project, scripted in " + language + ".\n\n"
+                "Build " + idea + " as a playable 2D game in the open AllioEngine project, scripted in " + language + ".\n\n"
                 "Work in small verified steps:\n"
                 "1. editor_status, then read jasper://project/AGENTS.md and the parts of jasper://docs/" +
                 std::string(language == "Lua" ? "lua-api" : "cpp-scripting") + " you need. Confirm API names with search_engine_api.\n"
@@ -765,7 +765,7 @@ void registerDocsTools(McpRegistry& registry) {
             PromptResult result;
             result.description = "Fix the project's script errors";
             const std::string text =
-                "Find and fix the errors in this JasperEngine project's scripts and shaders:\n"
+                "Find and fix the errors in this AllioEngine project's scripts and shaders:\n"
                 "1. sync_files (full) to pick up every file and get Lua syntax problems.\n"
                 "2. compile_scripts if the project has C++ scripts; check_shader for the shader forks.\n"
                 "3. Play the start scene for a few seconds, read the Console for \"Script crash\" and Lua errors, stop.\n"

@@ -5,7 +5,7 @@
 #include "EditorModal.h"
 #include "Backend.h"
 #include "Theme.h"
-#include "resources/icons/jasperengine-logo_png.h"
+#include "StudioArtwork.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <algorithm>
@@ -58,7 +58,7 @@ void LoadingWindow::showBuilds(bool hasBuilds) {
 void LoadingWindow::drawProjectOverlay(const std::string& status) {
     if (!logoLoaded) {
         TextureData data;
-        data.loadTextureFromMemory(jasperengine_logo_png, jasperengine_logo_png_len);
+        data.loadTextureFromMemory(studioWordmark, sizeof(studioWordmark));
         logo.setData("editor:loading:logo", data);
         logo.load();
         logoLoaded = true;
@@ -87,7 +87,7 @@ void LoadingWindow::drawProjectOverlay(const std::string& status) {
         const float barHeight = Theme::dpi(6.0f);
 
         TextureRender* logoRender = logo.getRender();
-        const float logoWidth = std::min(Theme::dpi(150.0f), windowSize.x);
+        const float logoWidth = std::min(Theme::dpi(260.0f), windowSize.x);
         const float logoHeight = logo.getWidth() > 0
             ? logoWidth * logo.getHeight() / logo.getWidth() : 0.0f;
         const char* statusText = status.empty() ? "Loading..." : status.c_str();

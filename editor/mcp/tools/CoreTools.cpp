@@ -925,8 +925,8 @@ void registerCoreTools(McpRegistry& registry) {
         ResourceDef guide;
         guide.uri = "jasper://guide";
         guide.name = "guide";
-        guide.title = "JasperEngine agent guide";
-        guide.description = "How to drive the JasperEngine editor through MCP (the initialize instructions).";
+        guide.title = "AllioEngine agent guide";
+        guide.description = "How to drive the AllioEngine editor through MCP (the initialize instructions).";
         guide.mimeType = "text/markdown";
         guide.read = [](const std::string& uri) {
             ResourceResult result;

@@ -5,7 +5,7 @@
 
 Generates a project with --assets assets (textures, models, audio) and --referrers YAML
 referrers (scenes and prefabs, each referencing --refs assets), lets the editor give every asset
-its identity once, then runs `jasperengine-editor assets bench`, which times on the asset
+its identity once, then runs `allioengine-editor assets bench`, which times on the asset
 database and the dependency index alone:
 
     cold_identity_ms        open() with no cache (the identity pass)          budget  1000
@@ -53,7 +53,7 @@ def editor_command(given: str | None) -> list[str]:
     env = os.environ.get("JASPER_EDITOR")
     if env:
         return shlex.split(env)
-    return [str(REPO / "build/linux/editor-install/bin/jasperengine-editor")]
+    return [str(REPO / "build/linux/editor-install/bin/allioengine-editor")]
 
 
 def texture_node(path: str) -> str:
