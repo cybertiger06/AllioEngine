@@ -132,6 +132,23 @@ CASES = [
         "max_turns": 8,
     },
     {
+        "id": "csharp_diagnostic_without_play",
+        "kind": "guard",
+        "what_happened": "A C# author wants the engine compiler's diagnostic without changing the game or starting Play.",
+        "text_at_issue": "check_script: Roslyn project compilation, file path and diagnostic code.",
+        "source": "C# authoring",
+        "files": {**GAME_FILES, "scripts/Runner.cs": "class Runner : AllioEngine.Behaviour { public float Speed = MissingSpeed; }"},
+        "prompt": "Use the editor to compile-check scripts/Runner.cs. Give me the diagnostic code. Leave the file as it is and keep Play stopped.",
+        "mocks": [
+            {"tool": "check_script", "result": ok("C# check: 1 error(s), 0 warning(s). scripts/Runner.cs:1: CS0103 MissingSpeed",
+                {"ok": False, "errors": [{"path": "scripts/Runner.cs", "line": 1, "col": 62, "code": "CS0103",
+                                          "message": "The name 'MissingSpeed' does not exist in the current context."}]})},
+        ],
+        "checks": {"calls": [{"tool": "check_script", "args": {"path": "scripts/Runner.cs"}}],
+                   "reply_must": [r"CS0103"], "must_not_call": ["play", "write_file", "compile_scripts"]},
+        "max_turns": 12,
+    },
+    {
         "id": "control_explain_lua",
         "kind": "control",
         "what_happened": "A question about code answered by reading the file; must not read it through read_file or start play.",

@@ -6,6 +6,7 @@
 #include "Input.h"
 #include "Log.h"
 #include "util/CrashHook.h"
+#include "util/NumberText.h"
 #include "component/Transform.h"
 #include "object/GameObject.h"
 #if JASPERENGINE_HTMLUI
@@ -174,9 +175,15 @@ namespace csharp {
         } else if (auto value = std::get_if<int>(&prop.value)) {
             api.property(script, prop.name.c_str(), std::to_string(*value).c_str());
         } else if (auto value = std::get_if<float>(&prop.value)) {
+#if (defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 130300) || \
+    (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) && __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ < 160300)
+            const std::string text = NumberText::formatFloat(*value);
+            api.property(script, prop.name.c_str(), text.c_str());
+#else
             char buffer[64]{};
             auto result = std::to_chars(buffer, buffer + sizeof(buffer) - 1, *value);
             if (result.ec == std::errc{}) api.property(script, prop.name.c_str(), buffer);
+#endif
         }
     }
 }

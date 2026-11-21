@@ -4,6 +4,7 @@
 #include "script/CSharpRuntime.h"
 #include "util/CommandRunner.h"
 #include "util/FileUtils.h"
+#include "util/SafeWrite.h"
 #include "util/Util.h"
 
 #include <algorithm>
@@ -96,6 +97,7 @@ bool buildForPlay(const fs::path& root, const fs::path& cache, std::string& erro
         return true;
     }
     const auto projectDir = cache / "csharp";
+    safewrite::EditorInternal ownBuild(projectDir);
     const auto api = FileUtils::getEngineDir() / "managed" / "Allio.Managed" / "Allio.Managed.csproj";
     if (!writeProject(projectDir, fs::absolute(root), files, api)) {
         error = "Cannot create the C# build project in " + FileUtils::pathToUtf8(projectDir);
