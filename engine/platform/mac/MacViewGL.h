@@ -1,0 +1,31 @@
+// (c) Eduardo Doria and contributors
+// SPDX-License-Identifier: MIT
+
+#ifndef MacViewGL_h
+#define MacViewGL_h
+
+#import <Cocoa/Cocoa.h>
+
+// The OpenGL drawable, for GRAPHIC_BACKEND=glcore. MTKView has no GL surface,
+// which is the one thing the two paths cannot share; input is not part of it
+// and goes through the same MacInputRouter and MacTextInputClient.
+@interface MacViewGL : NSOpenGLView <NSTextInputClient>
+
+// 0 disables vsync, 1 syncs to the vertical retrace
+- (void)setSwapInterval:(int)interval;
+
+- (void)makeContextCurrent;
+- (void)presentFrame;
+
+@end
+
+#ifdef __cplusplus
+#include "render/GpuWorkerContext.h"
+#include <memory>
+
+// The shader creation's worker context (spec S32): an NSOpenGLContext of the view's pixel format
+// sharing the view's context, current on the creation thread; null when Cocoa refuses it
+std::unique_ptr<jasperengine::GpuWorkerContext> makeMacGLWorkerContext(MacViewGL* view);
+#endif
+
+#endif /* MacViewGL_h */

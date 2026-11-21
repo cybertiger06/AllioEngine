@@ -1,0 +1,426 @@
+#include "InlineContainer.h"
+#include "../../../Include/RmlUi/Core/ComputedValues.h"
+#include "../../../Include/RmlUi/Core/Element.h"
+#include "../../../Include/RmlUi/Core/ElementScroll.h"
+#include "../../../Include/RmlUi/Core/ElementText.h"
+#include "../../../Include/RmlUi/Core/ElementUtilities.h"
+#include "../../../Include/RmlUi/Core/Profiling.h"
+#include "../../../Include/RmlUi/Core/Property.h"
+#include "BlockContainer.h"
+#include "../LineClampEllipsis.h"
+#include "FloatedBoxSpace.h"
+#include "InlineLevelBox.h"
+#include "LayoutDetails.h"
+#include "LineBox.h"
+#include "LineClamp.h"
+
+namespace Rml {
+
+InlineContainer::InlineContainer(BlockContainer* _parent, float _available_width, bool _first_formatted_line) :
+	LayoutBox(Type::InlineContainer), parent(_parent), first_formatted_line(_first_formatted_line), root_inline_box(_parent->GetElement())
+{
+	RMLUI_ASSERT(_parent);
+
+	box_size = {_available_width, -1.f};
+	position = parent->NextBoxPosition();
+
+	const auto& computed = parent->GetElement()->GetComputedValues();
+	element_line_height = computed.line_height().value;
+	wrap_content = (computed.text_wrap_mode() == Style::TextWrapMode::Wrap);
+	text_align = computed.text_align();
+	text_align_last = computed.text_align_last();
+	rtl = (computed.direction() == Style::Direction::Rtl);
+
+	// 'text-indent' (P6-J2): a percentage of the block container's width, 0 while an intrinsic width is measured (Chromium).
+	const Style::LengthPercentage& indent = computed.text_indent();
+	const Style::TextIndentMode indent_mode = computed.text_indent_mode();
+	if (indent.type != Style::LengthPercentage::Length || indent.value != 0.f)
+	{
+		const float percentage_basis = (LayoutDetails::IsMeasuringIntrinsicWidth() ? 0.f : Math::Max(_available_width, 0.f));
+		text_indent = ResolveValue(indent, percentage_basis);
+		indent_hanging = (uint8_t(indent_mode) & uint8_t(Style::TextIndentMode::Hanging)) != 0;
+		indent_each_line = (uint8_t(indent_mode) & uint8_t(Style::TextIndentMode::EachLine)) != 0;
+	}
+
+	// Line clamping (fork, P6-L1): the context of the line-clamp container this inline container is in, if any.
+	line_clamp = parent->GetLineClampContext();
+}
+
+void InlineContainer::IndentLine(LineBox* line_box)
+{
+	// The first formatted line, and with 'each-line' a line after a forced break; 'hanging' indents the other lines.
+	const bool indented = ((formatted_lines == 0 && first_formatted_line) || (indent_each_line && after_forced_break)) != indent_hanging;
+	formatted_lines += 1;
+	after_forced_break = false;
+	if (indented)
+		line_box->SetIndent(text_indent, rtl);
+}
+
+InlineContainer::~InlineContainer() {}
+
+InlineBox* InlineContainer::AddInlineElement(Element* element, const Box& box)
+{
+	RMLUI_ASSERT(element);
+
+	InlineBox* inline_box = nullptr;
+	InlineLevelBox* inline_level_box = nullptr;
+	InlineBoxBase* parent_box = GetOpenInlineBox();
+
+	if (auto text_element = rmlui_dynamic_cast<ElementText*>(element))
+	{
+		inline_level_box = parent_box->AddChild(MakeUnique<InlineLevelBox_Text>(text_element));
+	}
+	else if (box.GetSize().x >= 0.f)
+	{
+		inline_level_box = parent_box->AddChild(MakeUnique<InlineLevelBox_Atomic>(parent_box, element, box));
+	}
+	else
+	{
+		auto inline_box_ptr = MakeUnique<InlineBox>(parent_box, element, box);
+		inline_box = inline_box_ptr.get();
+		inline_level_box = parent_box->AddChild(std::move(inline_box_ptr));
+	}
+
+	const float minimum_line_height =
+		Math::Max(element_line_height, (box.GetSize().y >= 0.f ? box.GetSizeAcross(BoxDirection::Vertical, BoxArea::Margin) : 0.f));
+
+	LayoutOverflowHandle overflow_handle = {};
+	float minimum_width_next = 0.f;
+
+	while (true)
+	{
+		LineBox* line_box = EnsureOpenLineBox();
+
+		UpdateLineBoxPlacement(line_box, minimum_width_next, minimum_line_height);
+
+		InlineLayoutMode layout_mode = InlineLayoutMode::Nowrap;
+		if (wrap_content)
+		{
+			const bool line_shrinked_by_floats = (line_box->GetLineWidth() + 0.5f < box_size.x && minimum_width_next < box_size.x);
+			const bool can_wrap_any = (line_shrinked_by_floats || line_box->HasContent());
+			layout_mode = (can_wrap_any ? InlineLayoutMode::WrapAny : InlineLayoutMode::WrapAfterContent);
+		}
+
+		const bool add_new_line = line_box->AddBox(inline_level_box, layout_mode, overflow_handle);
+		if (!add_new_line)
+			break;
+
+		minimum_width_next = (line_box->HasContent() ? 0.f : line_box->GetLineWidth() + 1.f);
+
+		// Keep adding boxes on a new line, either because the box couldn't fit on the current line at all, or because it had to be split
+		// (a split at a preserved line feed is a forced break: LineBox::Close aligns it as a last line).
+		CloseOpenLineBox(false, false);
+	}
+
+	return inline_box;
+}
+
+void InlineContainer::CloseInlineElement(InlineBox* inline_box)
+{
+	if (LineBox* line_box = GetOpenLineBox())
+	{
+		line_box->CloseInlineBox(inline_box);
+	}
+	else
+	{
+		RMLUI_ERROR;
+	}
+}
+
+void InlineContainer::AddBreak(float line_height, Element* br)
+{
+	// Simply end the line if one is open, otherwise increment by the line height. The line after the break is one after a
+	// forced break ('each-line'), also the line an open inline box goes on on (split from the closed one, indented then).
+	if (GetOpenLineBox())
+	{
+		after_forced_break = true;
+		CloseOpenLineBox(true, true);
+	}
+	else
+	{
+		// (a line of nothing but the <br>: a line for line clamping, fork P6-L1)
+		if (line_clamp)
+			CountEmptyLineForLineClamp(br);
+		box_cursor += line_height;
+		formatted_lines += 1;
+		if (line_clamp)
+			RecordLineClampHeight();
+		after_forced_break = true;
+	}
+}
+
+void InlineContainer::AddChainedBox(UniquePtr<LineBox> open_line_box)
+{
+	RMLUI_ASSERT(line_boxes.empty());
+	RMLUI_ASSERT(open_line_box && !open_line_box->IsClosed());
+	if (text_indent != 0.f)
+		IndentLine(open_line_box.get());
+	line_boxes.push_back(std::move(open_line_box));
+}
+
+void InlineContainer::Close(UniquePtr<LineBox>* out_open_line_box, Vector2f& out_position, float& out_height)
+{
+	RMLUI_ZoneScoped;
+
+	// The parent container may need the open line box to be split and resumed. The last line of an inline container is a
+	// last line for 'text-align-last', also when a block-level box interrupts an inline box (as in Chromium).
+	CloseOpenLineBox(true, true, out_open_line_box);
+
+	// It is possible that floats were queued between closing the last line and closing this container, if so place them now.
+	parent->PlaceQueuedFloats(position.y + box_cursor);
+
+	// Set this box's height.
+	box_size.y = Math::Max(box_cursor, 0.f);
+
+	// Find the overflow size for our content, relative to our local space.
+	Vector2f visible_overflow_size = {0.f, box_size.y};
+
+	for (const auto& line_box : line_boxes)
+	{
+		visible_overflow_size.x = Math::Max(visible_overflow_size.x, line_box->GetPosition().x - position.x + line_box->GetExtentRight());
+	}
+
+	visible_overflow_size.x = Math::RoundDown(visible_overflow_size.x);
+	SetVisibleOverflowSize(visible_overflow_size);
+
+	out_position = position;
+	out_height = box_size.y;
+}
+
+void InlineContainer::CloseOpenLineBox(bool split_all_open_boxes, bool last_line, UniquePtr<LineBox>* out_split_line)
+{
+	if (LineBox* line_box = GetOpenLineBox())
+	{
+		float height_of_line = 0.f;
+		UniquePtr<LineBox> split_line_box = line_box->DetermineVerticalPositioning(&root_inline_box, split_all_open_boxes, height_of_line);
+
+		// If the final height of the line is larger than previously considered, we might need to push the line down to
+		// clear overlapping floats.
+		if (height_of_line > line_box->GetLineMinimumHeight())
+			UpdateLineBoxPlacement(line_box, 0.f, height_of_line);
+
+		if (line_clamp)
+			CountLineForLineClamp(line_box);
+
+		// Now that the line has been given a final position and size, close the line box to submit all the fragments.
+		// Our parent block container acts as the containing block for our inline boxes.
+		line_box->Close(parent->GetElement(), parent->GetPosition(), text_align, text_align_last, last_line, rtl);
+		if (line_box->EndsWithLineFeed())
+			after_forced_break = true;
+
+		// Move the cursor down, unless we should collapse the line.
+		if (!line_box->CanCollapseLine())
+			box_cursor = (line_box->GetPosition().y - position.y) + height_of_line;
+
+		if (line_clamp)
+			RecordLineClampHeight();
+
+		// If we have any pending floating elements for our parent, then this would be an ideal time to place them.
+		parent->PlaceQueuedFloats(position.y + box_cursor);
+
+		if (split_line_box)
+		{
+			if (out_split_line)
+				*out_split_line = std::move(split_line_box);
+			else
+			{
+				// The line the open inline boxes go on on is a formatted line too: 'text-indent' indents it as any other
+				// (hanging, each-line), as Chromium does.
+				if (text_indent != 0.f)
+					IndentLine(split_line_box.get());
+				line_boxes.push_back(std::move(split_line_box));
+			}
+		}
+	}
+}
+
+bool InlineContainer::GetOpenLineBoxDimensions(float& out_vertical_position, Vector2f& out_tentative_size) const
+{
+	if (LineBox* line_box = GetOpenLineBox())
+	{
+		out_vertical_position = position.y + box_cursor;
+		out_tentative_size = {line_box->GetBoxCursor(), line_box->GetLineMinimumHeight()};
+		return true;
+	}
+	return false;
+}
+
+void InlineContainer::UpdateOpenLineBoxPlacement()
+{
+	if (LineBox* line_box = GetOpenLineBox())
+		UpdateLineBoxPlacement(line_box, 0.f, element_line_height);
+}
+
+void InlineContainer::UpdateLineBoxPlacement(LineBox* line_box, float minimum_width, float minimum_height)
+{
+	RMLUI_ASSERT(line_box);
+
+	Vector2f minimum_dimensions = {
+		Math::Max(minimum_width, line_box->GetContentExtent()),
+		Math::Max(minimum_height, line_box->GetLineMinimumHeight()),
+	};
+
+	// @performance: We might benefit from doing this search only when the minimum dimensions change, or if we get new inline floats.
+	const float ideal_position_y = position.y + box_cursor;
+	float available_width = 0.f;
+	const Vector2f line_position =
+		parent->GetBlockBoxSpace()->NextBoxPosition(parent, available_width, ideal_position_y, minimum_dimensions, !wrap_content);
+	available_width = Math::Max(available_width, 0.f);
+
+	line_box->SetLineBox(line_position, available_width, minimum_dimensions.y);
+}
+
+void InlineContainer::CountLineForLineClamp(LineBox* line_box)
+{
+	// Lines with content count (Chromium: not its empty line boxes).
+	if (line_box->CanCollapseLine())
+		return;
+	if (line_clamp->lines_until_clamp <= 0 && first_past_clamp_line == 0)
+		first_past_clamp_line = (int)line_boxes.size();
+
+	if (line_clamp->lines_until_clamp == 1)
+	{
+		clamp_ellipsis = MakeUnique<LineClampEllipsis>();
+		if (LineClamp::MakeEllipsis(parent->GetElement(), *clamp_ellipsis))
+			line_box->SetLineClampEllipsis(*clamp_ellipsis);
+	}
+	line_clamp->lines_until_clamp -= 1;
+}
+
+void InlineContainer::CountEmptyLineForLineClamp(Element* br)
+{
+	if (line_clamp->lines_until_clamp <= 0 && first_past_clamp_line == 0)
+		first_past_clamp_line = (int)line_boxes.size() + 1;
+
+	if (line_clamp->lines_until_clamp == 1)
+	{
+		// The ellipsis alone at the line's start (the <br> is the item it follows), on the baseline of the line's strut.
+		Element* block = parent->GetElement();
+		LineClampEllipsis ellipsis;
+		if (LineClamp::MakeEllipsis(block, ellipsis))
+		{
+			// The line ends at a forced break: 'text-align-last' aligns it; 'text-indent' as IndentLine indents the line (P6-J2).
+			const bool indented = ((formatted_lines == 0 && first_formatted_line) || (indent_each_line && after_forced_break)) != indent_hanging;
+			const float indent = (indented ? text_indent : 0.f);
+			const float available = box_size.x - indent;
+			float alignment_offset = (rtl ? 0.f : indent);
+			switch (text_align_last)
+			{
+			case Style::TextAlign::Center: alignment_offset += 0.5f * available; break;
+			case Style::TextAlign::Right: alignment_offset += available; break;
+			default: break;
+			}
+			const Vector2f line_top_left = position - parent->GetPosition() + Vector2f(0.f, box_cursor);
+			ellipsis.position = line_top_left + Vector2f(alignment_offset + (rtl ? -ellipsis.width : 0.f), root_inline_box.GetHeightAboveBaseline());
+			// (painted after the <br>, or after the block's own content when there is no element to follow)
+			LineClampAccess::SetBlockEllipsis(block, &ellipsis, br ? br : block);
+		}
+	}
+	line_clamp->lines_until_clamp -= 1;
+}
+
+void InlineContainer::RecordLineClampHeight()
+{
+	if (line_clamp->lines_until_clamp <= 0 && !has_clamp_height)
+	{
+		clamp_height = Math::Max(box_cursor, 0.f);
+		has_clamp_height = true;
+	}
+}
+
+float InlineContainer::GetShrinkToFitWidth() const
+{
+	float content_width = 0.0f;
+
+	// Simply find our widest line (with a right-to-left line's indent).
+	for (const auto& line_box : line_boxes)
+		content_width = Math::Max(content_width, line_box->GetContentExtent());
+
+	return content_width;
+}
+
+Vector2f InlineContainer::GetStaticPositionEstimate(bool inline_level_box) const
+{
+	Vector2f result = {0.f, box_cursor};
+
+	if (const LineBox* line_box = GetOpenLineBox())
+	{
+		if (inline_level_box)
+			result.x += line_box->GetBoxCursor();
+		else
+			result.y += element_line_height;
+	}
+
+	return result;
+}
+
+// A zero-height line box (nothing but empty inline boxes or empty text) does not exist for the purpose of baselines (CSS 2.1
+// §9.4.2, Chromium): an inline-block whose content is an empty ::before has its baseline at its bottom margin edge (fork, P4-G11).
+bool InlineContainer::GetBaselineOfLastLine(float& out_baseline) const
+{
+	// (the lines laid out past the line-clamp point give none: Chromium, fork P6-L1)
+	for (auto it = line_boxes.rbegin() + (first_past_clamp_line != 0 ? (int)line_boxes.size() - (first_past_clamp_line - 1) : 0); it != line_boxes.rend(); ++it)
+	{
+		if ((*it)->CanCollapseLine())
+			continue;
+		out_baseline = (*it)->GetPosition().y + (*it)->GetBaseline();
+		return true;
+	}
+	return false;
+}
+
+bool InlineContainer::GetBaselineOfFirstLine(float& out_baseline) const
+{
+	const auto end = (first_past_clamp_line != 0 ? line_boxes.begin() + (first_past_clamp_line - 1) : line_boxes.end());
+	for (auto it = line_boxes.begin(); it != end; ++it)
+	{
+		const auto& line_box = *it;
+		if (line_box->CanCollapseLine())
+			continue;
+		out_baseline = line_box->GetPosition().y + line_box->GetBaseline();
+		return true;
+	}
+	return false;
+}
+
+LineBox* InlineContainer::EnsureOpenLineBox()
+{
+	if (line_boxes.empty() || line_boxes.back()->IsClosed())
+	{
+		line_boxes.push_back(MakeUnique<LineBox>());
+		if (text_indent != 0.f)
+			IndentLine(line_boxes.back().get());
+	}
+	return line_boxes.back().get();
+}
+
+LineBox* InlineContainer::GetOpenLineBox() const
+{
+	if (line_boxes.empty() || line_boxes.back()->IsClosed())
+		return nullptr;
+	return line_boxes.back().get();
+}
+
+InlineBoxBase* InlineContainer::GetOpenInlineBox()
+{
+	if (LineBox* line_box = GetOpenLineBox())
+	{
+		if (InlineBox* inline_box = line_box->GetOpenInlineBox())
+			return inline_box;
+	}
+	return &root_inline_box;
+}
+
+String InlineContainer::DebugDumpTree(int depth) const
+{
+	String value = String(depth * 2, ' ') + "InlineContainer" + '\n';
+
+	value += root_inline_box.DebugDumpTree(depth + 1);
+
+	for (const auto& line_box : line_boxes)
+		value += line_box->DebugDumpTree(depth + 1);
+
+	return value;
+}
+
+} // namespace Rml

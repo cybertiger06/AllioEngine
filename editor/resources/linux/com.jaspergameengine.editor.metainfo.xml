@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- (c) Eduardo Doria -->
+<!-- SPDX-License-Identifier: MIT -->
+<component type="desktop-application">
+  <id>com.jaspergameengine.editor</id>
+  <launchable type="desktop-id">jasperengine-editor.desktop</launchable>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>JasperEngine</name>
+  <summary>Build cross-platform 2D and 3D games</summary>
+
+  <developer id="com.jaspergameengine">
+    <name>JasperDev</name>
+  </developer>
+
+  <description>
+    <p>
+      JasperEngine is a free, open-source 2D/3D game engine with an integrated editor
+      for building cross-platform games and interactive projects with Lua or C++.
+    </p>
+    <p>
+      Projects target Windows, Linux, macOS, Android, iOS and HTML5 from a single
+      source, rendering through OpenGL, Vulkan, Metal or DirectX.
+    </p>
+  </description>
+
+  <categories>
+    <category>Development</category>
+    <category>IDE</category>
+  </categories>
+
+  <keywords>
+    <keyword>game</keyword>
+    <keyword>engine</keyword>
+    <keyword>3d</keyword>
+    <keyword>2d</keyword>
+    <keyword>editor</keyword>
+  </keywords>
+
+  <url type="homepage">https://github.com/Arakuma-Studio/JasperEngine</url>
+  <url type="help">https://github.com/Arakuma-Studio/JasperEngine</url>
+  <url type="bugtracker">https://github.com/Arakuma-Studio/JasperEngine/issues</url>
+  <url type="vcs-browser">https://github.com/Arakuma-Studio/JasperEngine</url>
+
+
+  <content_rating type="oars-1.1"/>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+</component>

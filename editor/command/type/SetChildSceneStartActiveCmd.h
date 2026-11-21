@@ -1,0 +1,32 @@
+// (c) Eduardo Doria and contributors
+// SPDX-License-Identifier: MIT
+
+#pragma once
+
+#include "command/Command.h"
+#include "command/CommandNames.h"
+#include "Project.h"
+
+namespace jasperengine::editor {
+    class SetChildSceneStartActiveCmd : public Command {
+    private:
+        Project* project;
+        uint32_t sceneId;
+        uint32_t childSceneId;
+        bool newStartActive;
+        bool oldStartActive;
+        bool wasModified;
+
+    public:
+        SetChildSceneStartActiveCmd(Project* project, uint32_t sceneId, uint32_t childSceneId, bool startActive);
+
+        bool execute() override;
+        void undo() override;
+
+        std::string describe() const override {
+            return std::string(newStartActive ? "Activate" : "Deactivate") + " Child Scene " + CommandNames::scene(project, childSceneId) + " at Start";
+        }
+        const char* typeName() const override { return "SetChildSceneStartActiveCmd"; }
+
+    };
+}

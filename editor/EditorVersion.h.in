@@ -1,0 +1,4 @@
+// Configured by CMake into the build directory, edit this file and not the copy
+#pragma once
+
+#define JASPERENGINE_EDITOR_VERSION "@JASPERENGINE_EDITOR_VERSION@"

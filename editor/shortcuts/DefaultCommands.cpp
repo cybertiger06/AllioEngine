@@ -1,0 +1,680 @@
+// (c) Eduardo Doria and contributors
+// SPDX-License-Identifier: MIT
+
+#include "DefaultCommands.h"
+
+#include "AppMenuCommand.h"
+#include "window/HierarchyWindow.h"
+
+#include <cctype>
+
+using namespace jasperengine::editor;
+
+namespace {
+
+    using C = ShortcutContext;
+
+    Chord chord(const char* text) {
+        if (!text || !*text) return Chord();
+        // the table is authored here: a typo must fail the tests, not leave a key unbound
+        return Chord::parse(text).value_or(Chord());
+    }
+
+    struct Builder {
+        std::vector<CommandDef>& out;
+        std::string group;
+
+        CommandDef& add(const char* id, const char* name, C context, const char* primary = nullptr,
+                        const char* secondary = nullptr) {
+            CommandDef def;
+            def.id = id;
+            def.group = group;
+            def.name = name;
+            def.context = context;
+            def.primary = chord(primary);
+            def.secondary = chord(secondary);
+            out.push_back(std::move(def));
+            return out.back();
+        }
+
+        CommandDef& menu(const char* id, const char* name, AppMenuCommand command, C context = C::Editor,
+                         const char* primary = nullptr, const char* secondary = nullptr) {
+            CommandDef& def = add(id, name, context, primary, secondary);
+            def.menuCommand = static_cast<uint32_t>(command);
+            return def;
+        }
+
+        CommandDef& gesture(const char* id, const char* name, C context, const char* gestureText, const char* description) {
+            CommandDef& def = add(id, name, context);
+            def.readOnly = true;
+            def.gesture = gestureText;
+            def.description = description;
+            return def;
+        }
+    };
+
+    // "3D Object" -> "3dObject", "Directional Light" -> "directionalLight"
+    std::string camel(const char* text) {
+        std::string out;
+        bool upperNext = false;
+        for (const char* c = text; *c; ++c) {
+            const unsigned char ch = static_cast<unsigned char>(*c);
+            if (std::isalnum(ch) == 0) {
+                upperNext = !out.empty();
+                continue;
+            }
+            if (out.empty()) out.push_back(static_cast<char>(std::tolower(ch)));
+            else out.push_back(static_cast<char>(upperNext ? std::toupper(ch) : ch));
+            upperNext = false;
+        }
+        return out;
+    }
+
+}
+
+std::string jasperengine::editor::createEntryCommandId(size_t entryIndex) {
+    const auto& entries = HierarchyWindow::getCreateMenuEntries();
+    if (entryIndex >= entries.size()) return {};
+    const CreateMenuEntry& entry = entries[entryIndex];
+    if (entry.command) return entry.command;
+    std::string id = "gameobject.create.";
+    if (entry.submenu) id += camel(entry.submenu) + ".";
+    return id + camel(entry.label);
+}
+
+std::vector<CommandDef> jasperengine::editor::defaultCommands() {
+    std::vector<CommandDef> out;
+    Builder b{out, ""};
+
+    b.group = "File";
+    b.menu("file.newScene3D", "New Scene (3D)", AppMenuCommand::NewScene3D);
+    b.menu("file.newScene2D", "New Scene (2D)", AppMenuCommand::NewScene2D);
+    b.menu("file.newSceneUI", "New Scene (UI)", AppMenuCommand::NewSceneUI);
+    b.menu("file.save", "Save", AppMenuCommand::Save, C::Global, "Ctrl+S").description = "Save the current scene or script";
+    b.menu("file.saveAll", "Save All", AppMenuCommand::SaveAll, C::Global, "Ctrl+Shift+S").description =
+        "Save every scene, script and the project";
+    b.menu("file.removeScene", "Remove Scene from Project", AppMenuCommand::RemoveScene);
+    b.menu("file.newProject", "New Project...", AppMenuCommand::NewProject).agentSafe = false;
+    b.menu("file.projectHub", "Project Hub...", AppMenuCommand::ProjectHub).agentSafe = false;
+    b.menu("file.saveProjectAsTemplate", "Save Project as Template...", AppMenuCommand::SaveProjectAsTemplate).description =
+        "Save the project as a starter project of the Project Hub's New Project";
+    b.menu("file.openProject", "Open Project...", AppMenuCommand::OpenProject, C::Global, "Ctrl+O").agentSafe = false;
+    b.menu("file.clearRecentProjects", "Clear Recent Projects", AppMenuCommand::ClearRecentProjects).agentSafe = false;
+    b.menu("file.saveProjectAs", "Save Project As...", AppMenuCommand::SaveProjectAs);
+    b.menu("file.buildSettings", "Build Settings...", AppMenuCommand::ExportProject, C::Editor, "Ctrl+Shift+B");
+    b.menu("file.exit", "Exit", AppMenuCommand::Exit).agentSafe = false;
+
+    b.group = "Edit";
+    CommandDef& undo = b.menu("edit.undo", "Undo", AppMenuCommand::Undo, C::Editor, "Ctrl+Z");
+    undo.repeat = true;
+    CommandDef& redo = b.menu("edit.redo", "Redo", AppMenuCommand::Redo, C::Editor, "Ctrl+Y", "Ctrl+Shift+Z");
+    redo.macPrimary = chord("Ctrl+Shift+Z");
+    redo.repeat = true;
+    for (auto [id, name, command, key] : {
+             std::tuple{"edit.selectAll", "Select All", AppMenuCommand::SelectAll, "Ctrl+A"},
+             std::tuple{"edit.cut", "Cut", AppMenuCommand::CutSelection, "Ctrl+X"},
+             std::tuple{"edit.copy", "Copy", AppMenuCommand::CopySelection, "Ctrl+C"},
+             std::tuple{"edit.paste", "Paste", AppMenuCommand::PasteSelection, "Ctrl+V"},
+             std::tuple{"edit.pasteAsChild", "Paste As Child", AppMenuCommand::PasteAsChild, "Ctrl+Shift+V"}}) {
+        CommandDef& def = b.menu(id, name, command, C::Hierarchy, key);
+        def.alsoIn = {C::SceneView};
+    }
+    b.menu("edit.duplicate", "Duplicate", AppMenuCommand::DuplicateSelection, C::Editor, "Ctrl+D");
+    b.menu("edit.rename", "Rename", AppMenuCommand::RenameSelection, C::Editor, "F2");
+    b.menu("edit.delete", "Delete", AppMenuCommand::DeleteSelection, C::Editor, "Delete", "Backspace").repeat = true;
+    b.menu("edit.frameSelected", "Frame Selected", AppMenuCommand::FrameSelected, C::Editor, "F").repeat = true;
+    b.menu("edit.searchAll", "Search All...", AppMenuCommand::SearchAll, C::Global, "Ctrl+K").description =
+        "Find any command, window, setting, asset, GameObject or component";
+    b.menu("edit.play", "Play", AppMenuCommand::TogglePlay, C::Global, "Ctrl+P").description = "Enter or leave Play mode";
+    b.menu("edit.pause", "Pause", AppMenuCommand::TogglePause, C::Global, "Ctrl+Shift+P").description = "Pause or resume Play mode";
+    b.menu("edit.step", "Step", AppMenuCommand::StepFrame, C::Global, "Ctrl+Alt+P").description = "Advance a paused game by one frame";
+    b.menu("edit.stop", "Stop", AppMenuCommand::StopScene);
+    b.menu("edit.projectSettings", "Project Settings...", AppMenuCommand::ProjectSettings);
+    b.menu("edit.clearUserSettings", "Clear User Settings (PlayerPrefs)...", AppMenuCommand::ClearUserSettings).description =
+        "Delete what the game saved with UserSettings / PlayerPrefs on this machine";
+    b.menu("edit.preferences", "Preferences...", AppMenuCommand::EditorSettings);
+    b.menu("edit.shortcuts", "Shortcuts...", AppMenuCommand::Shortcuts).description = "View and rebind the editor's keyboard shortcuts";
+
+    b.group = "Play Mode";
+    b.add("playmode.playOrResume", "Play or Resume", C::Global, "F5");
+    b.add("playmode.pauseOnly", "Pause", C::Global, "F6");
+    b.add("playmode.stop", "Stop", C::Global, "F7");
+    // Escape in the Game view does it too (Unity), the key still reaching the game
+    b.add("playmode.releaseCursor", "Release Game Cursor", C::Global).description =
+        "Give a cursor the running game captured back to the editor; click the Game view to return it";
+    CommandDef& maximize = b.menu("playmode.maximizeOnPlay", "Maximize On Play", AppMenuCommand::ToggleMaximizeOnPlay, C::Global, "F11");
+    maximize.description = "Fill the editor with the Game view while playing (the Game view toolbar's toggle)";
+    // macOS takes F11 for Show Desktop: Control+Cmd+F, the Mac's full-screen key, comes first there
+    maximize.macPrimary = chord("Ctrl+Super+F");
+
+    b.group = "Assets";
+    b.menu("assets.createFolder", "Create Folder", AppMenuCommand::AssetsCreateFolder);
+    b.menu("assets.createLuaScript", "Create Lua Script", AppMenuCommand::AssetsCreateLuaScript);
+    b.menu("assets.createCppScript", "Create C++ Script", AppMenuCommand::AssetsCreateCppScript);
+    b.menu("assets.createCppSource", "Create C++ Source File", AppMenuCommand::AssetsCreateCppSource);
+    b.menu("assets.createCppHeader", "Create C++ Header File", AppMenuCommand::AssetsCreateCppHeader);
+    b.menu("assets.createHtmlDocument", "Create HTML Document", AppMenuCommand::AssetsCreateHtmlDocument);
+    b.menu("assets.createPoseAnimation", "Create Pose Animation", AppMenuCommand::AssetsCreatePoseAnimation);
+    b.menu("assets.createAnimationClip", "Create Animation Clip", AppMenuCommand::AssetsCreateAnimationClip);
+    b.menu("assets.createAnimatorController", "Create Animator Controller", AppMenuCommand::AssetsCreateAnimatorController);
+    b.menu("assets.createAvatarMask", "Create Avatar Mask", AppMenuCommand::AssetsCreateAvatarMask);
+    b.menu("assets.createAnimationMontage", "Create Animation Montage", AppMenuCommand::AssetsCreateAnimationMontage);
+    b.menu("assets.createAudioMixer", "Create Audio Mixer", AppMenuCommand::AssetsCreateAudioMixer);
+    b.menu("assets.createSoundEvent", "Create Sound Event", AppMenuCommand::AssetsCreateSoundEvent);
+    b.menu("assets.createSoundEventFromClips", "Create Sound Event from Clips", AppMenuCommand::AssetsCreateSoundEventFromClips);
+    b.menu("assets.createPlaceholderSound", "Create Placeholder Sound", AppMenuCommand::AssetsCreatePlaceholderSound);
+    b.menu("assets.reanalyzeAudio", "Reanalyze Audio", AppMenuCommand::AssetsReanalyzeAudio).description =
+        "Drop the cached measurements of the selected audio files: they are measured again";
+    b.add("assets.importTitleArt", "Import Title Art...", C::Editor).description =
+        "Import a Pachislop project, a layered PSD or an SVG as a new Title Art";
+    b.menu("assets.importSoundEssentials", "Import Sound Essentials", AppMenuCommand::AssetsImportSoundEssentials).description =
+        "Import the 40 built-in CC0 clips into sounds/essentials (one undo step)";
+    b.menu("assets.createShakePreset", "Create Shake Preset", AppMenuCommand::AssetsCreateShakePreset);
+    b.menu("assets.createPalette", "Create Palette", AppMenuCommand::AssetsCreatePalette).description =
+        "A new palette (black and white): edit it in Window > 2D > Palette";
+    b.menu("assets.createProceduralMaterial", "Create Procedural Material", AppMenuCommand::AssetsCreateProceduralMaterial).description =
+        "A .procmat graph (a noise on a Material Output), opened in the Procedural Material window";
+    b.menu("assets.createTileset", "Create Tileset", AppMenuCommand::AssetsCreateTileset).description =
+        "A new .tileset (edit it in the Tileset Editor)";
+    // S45
+    b.menu("assets.createSpriteAtlas", "Create Sprite Atlas", AppMenuCommand::AssetsCreateSpriteAtlas);
+    b.menu("assets.createSpriteAtlasFromSelection", "Create Sprite Atlas from Selection", AppMenuCommand::AssetsCreateSpriteAtlasFromSelection);
+    b.menu("assets.convertInlineSpriteFrames", "Convert Inline Sprite Frames...", AppMenuCommand::AssetsConvertInlineSpriteFrames);
+    b.menu("assets.createPhysicsMaterial", "Create Physics Material", AppMenuCommand::AssetsCreatePhysicsMaterial);
+    b.menu("assets.createPhysicsMaterial2D", "Create Physics Material 2D", AppMenuCommand::AssetsCreatePhysicsMaterial2D);
+    b.menu("assets.createTitleArt", "Create Title Art", AppMenuCommand::AssetsCreateTitleArt);
+    b.menu("titleArt.bakeAll", "Title Art: Bake All", AppMenuCommand::TitleArtBakeAll);
+    b.menu("assets.createNoiseGraph", "Create Noise Graph", AppMenuCommand::AssetsCreateNoiseGraph).description =
+        "A Blank Noise Graph in the current folder; the Project window's Create menu offers the presets too";
+    b.menu("assets.createNativePlugin", "Create Native Plugin...", AppMenuCommand::AssetsCreateNativePlugin);
+    b.menu("assets.showInFileManager", "Show in File Manager", AppMenuCommand::AssetsShowInFileManager);
+    b.menu("assets.open", "Open", AppMenuCommand::AssetsOpen);
+    b.menu("assets.rename", "Rename Asset", AppMenuCommand::AssetsRename);
+    b.menu("assets.duplicate", "Duplicate Asset", AppMenuCommand::AssetsDuplicate).description =
+        "Copy the selected assets beside themselves (Unity names: hero 1.png)";
+    b.menu("assets.delete", "Delete Asset", AppMenuCommand::AssetsDelete);
+    b.menu("assets.import", "Import New Asset...", AppMenuCommand::AssetsImport);
+    b.menu("assets.refresh", "Refresh", AppMenuCommand::AssetsRefresh, C::Editor, "Ctrl+R");
+    b.menu("assets.reimportTextures", "Reimport All Textures", AppMenuCommand::AssetsReimportTextures).description =
+        "Cook every texture of the project again for the editor (the cache answers what did not change)";
+    b.menu("assets.migrateReferences", "Migrate References", AppMenuCommand::MigrateAssetReferences);
+    b.menu("assets.scenesInBuild", "Scenes in Build...", AppMenuCommand::ProjectScenes);
+    b.menu("assets.prefabs", "Prefabs...", AppMenuCommand::ProjectPrefabs);
+    b.menu("assets.emptyTrash", "Empty Trash...", AppMenuCommand::ClearTrash).agentSafe = false;
+    b.add("assets.clearShaderWarmup", "Clear Shader Warm-up List", C::Editor).description =
+        "Empty the project's shader warm-up list (ShaderWarmup.json): Record During Play builds it again";
+    // S29: the Project window's selected files; Commit... opens the Commit window either way
+    b.menu("assets.vcs.commit", "Commit...", AppMenuCommand::VcsCommit).description = "Version control: commit changed files (the Commit window)";
+    b.menu("assets.vcs.revert", "Revert...", AppMenuCommand::VcsRevert).description = "Version control: discard the selected files' changes (undoable)";
+    b.menu("assets.vcs.lock", "Lock", AppMenuCommand::VcsLock).description = "Version control: lock the selected files on the server";
+    b.menu("assets.vcs.unlock", "Unlock", AppMenuCommand::VcsUnlock).description = "Version control: release the selected files' locks";
+    b.menu("assets.vcs.history", "Show History", AppMenuCommand::VcsShowHistory).description = "Version control: the selected file's history";
+    b.menu("assets.vcs.diff", "Diff Against Baseline", AppMenuCommand::VcsDiffAgainstBaseline).description =
+        "Version control: the selected file against its last commit (scenes and prefabs: the Scene Diff)";
+    b.menu("assets.vcs.refresh", "Refresh Version Control", AppMenuCommand::VcsRefresh).description = "Version control: read the status and the locks now";
+    b.menu("scripts.reload", "Reload Scripts", AppMenuCommand::ScriptsReload);
+    b.menu("scripts.rebuildCpp", "Rebuild C++ Scripts", AppMenuCommand::ScriptsRebuildCpp);
+    b.menu("scripts.cancelBuild", "Cancel Script Build", AppMenuCommand::ScriptsCancelBuild);
+
+    b.group = "GameObject";
+    const auto& entries = HierarchyWindow::getCreateMenuEntries();
+    for (size_t i = 0; i < entries.size(); i++) {
+        const CreateMenuEntry& entry = entries[i];
+        const std::string id = createEntryCommandId(i);
+        const std::string name = entry.submenu ? std::string(entry.submenu) + " / " + entry.label : std::string(entry.label);
+        CommandDef& def = b.menu("", "", AppMenuCommand::CreateGameObject, C::Editor,
+                                 entry.type == EntityCreationType::GAMEOBJECT ? "Ctrl+Shift+N" : nullptr);
+        def.id = id;
+        def.name = name;
+        def.menuPayload = std::to_string(i);
+        if (entry.type == EntityCreationType::GAMEOBJECT) {
+            b.menu("gameobject.createEmptyChild", "Create Empty Child", AppMenuCommand::CreateEmptyChild, C::Editor, "Alt+Shift+N");
+        }
+    }
+
+    b.menu("gameobject.addCameraShakerToMainCamera", "Add Camera Shaker to Main Camera", AppMenuCommand::AddCameraShakerToMainCamera);
+
+    b.group = "Component";
+    b.menu("component.add", "Add Component", AppMenuCommand::AddComponent, C::Editor, "Ctrl+Shift+A");
+
+    b.group = "Window";
+    b.menu("window.scene", "Scene", AppMenuCommand::FocusScene, C::Editor, "Ctrl+1");
+    b.menu("window.game", "Game", AppMenuCommand::FocusGame, C::Editor, "Ctrl+2");
+    b.menu("window.inspector", "Inspector", AppMenuCommand::ToggleInspector, C::Editor, "Ctrl+3");
+    b.menu("window.hierarchy", "Hierarchy", AppMenuCommand::ToggleHierarchy, C::Editor, "Ctrl+4");
+    b.menu("window.project", "Project", AppMenuCommand::ToggleProject, C::Editor, "Ctrl+5");
+    b.menu("window.animation", "Animation", AppMenuCommand::ToggleAnimation, C::Editor, "Ctrl+6");
+    b.menu("window.poseAnimation", "Pose Animation", AppMenuCommand::TogglePoseAnimation);
+    b.menu("window.animator", "Animator", AppMenuCommand::ToggleAnimator);
+    b.menu("window.vertexAnimationBaker", "Vertex Animation Baker", AppMenuCommand::ToggleVertexAnimationBaker);
+    b.menu("window.profiler", "Profiler", AppMenuCommand::ToggleProfiler, C::Editor, "Ctrl+7");
+    b.menu("window.console", "Console", AppMenuCommand::ToggleConsole, C::Editor, "Ctrl+Shift+C");
+    b.menu("window.bookmarks", "Bookmarks", AppMenuCommand::ToggleBookmarks);
+    b.menu("window.undoHistory", "Undo History", AppMenuCommand::ToggleUndoHistory);
+    b.menu("window.playModeChanges", "Play Mode Changes", AppMenuCommand::TogglePlayModeChanges);
+    b.menu("window.colorPicker", "Color Picker", AppMenuCommand::ToggleColorPicker).description =
+        "The Color window on its own: eyedropper, swatches, hexadecimal";
+    b.menu("window.recorder", "Recorder", AppMenuCommand::ToggleRecorder).description =
+        "Record the Game view to a PNG sequence or a movie";
+    b.menu("recorder.toggle", "Start Recording", AppMenuCommand::ToggleRecording, C::Global, "F10").description =
+        "Start or stop the Recorder (enters Play when needed)";
+    b.menu("window.terrain", "Terrain", AppMenuCommand::ToggleTerrain);
+    b.menu("window.soundBrowser", "Sound Browser", AppMenuCommand::ToggleSoundBrowser);
+    b.menu("window.graphEditor", "Graph Editor", AppMenuCommand::ToggleGraphEditor);
+    b.menu("window.audioCaptures", "Audio Captures", AppMenuCommand::ToggleAudioCaptures);
+    b.menu("window.voxelVolume", "Voxel Volume", AppMenuCommand::ToggleVoxelVolume).description = "Brushes, materials, overlays and stats of a Voxel Volume";
+    b.menu("window.voxelSlice", "Voxel Slice", AppMenuCommand::ToggleVoxelSlice).description = "One plane of a Voxel Volume, drawn on the CPU";
+    b.menu("window.noiseGraph", "Noise Graph", AppMenuCommand::ToggleNoiseGraph).description = "Edit a Noise Graph: the node graphs that generate Terrains";
+    b.menu("window.audioMixer", "Audio Mixer", AppMenuCommand::ToggleAudioMixer);
+    b.menu("window.particleEffect", "Particle Effect", AppMenuCommand::ToggleParticleEffect).description =
+        "An effect as a whole: outline, timing, a preview stage and its modules";
+    b.menu("audioMixer.resetLoudness", "Reset Integrated Loudness", AppMenuCommand::ResetLoudness).description =
+        "Start the Audio Mixer's integrated loudness and true-peak hold over";
+    b.menu("window.palette", "Palette", AppMenuCommand::TogglePalette).description =
+        "Pixel-art palettes: swatches, ramps, variants and how a texture uses them";
+    b.menu("window.tilePalette", "Tile Palette", AppMenuCommand::ToggleTilePalette).description =
+        "The tile brushes: tools, terrains, random brushes and stamps of the active Tilemap Layer";
+    b.menu("window.tilesetEditor", "Tileset Editor", AppMenuCommand::ToggleTilesetEditor).description =
+        "Edit a .tileset: collision, animation, terrains and properties of its tiles";
+    b.menu("window.pixelArtCheck", "Pixel Art Check", AppMenuCommand::TogglePixelArtCheck).description =
+        "The pixel-art rules on the project: findings, measured values and one-click fixes";
+    b.menu("window.pixelArtCleanup", "Pixel Art Cleanup", AppMenuCommand::TogglePixelArtCleanup).description =
+        "Recover AI or loose art as real pixels: a grid, a palette, verdicts and a split compare";
+    b.menu("window.inputActions", "Input Actions", AppMenuCommand::ToggleInputActions);
+    b.menu("window.navigation", "Navigation", AppMenuCommand::ToggleNavigation);
+    b.menu("window.textureSynthesis", "Texture Synthesis", AppMenuCommand::ToggleTextureSynthesis);
+    b.menu("window.spriteNormals", "Sprite Normal Map", AppMenuCommand::ToggleSpriteNormals).description =
+        "Generate and edit normal maps for 2D sprites";
+    b.menu("window.titleDesigner", "Title Designer", AppMenuCommand::ToggleTitleDesigner).description =
+        "Design Title Art: stylized titles and logos";
+    b.menu("window.physicsPlacement", "Physics Placement", AppMenuCommand::TogglePhysicsPlacement);
+    b.menu("window.spritePreview", "Sprite Preview", AppMenuCommand::ToggleSpritePreview).description =
+        "Play an .aseprite file's tags, with onion skin, slices and its import side by side";
+    b.menu("window.missingAssets", "Missing Assets", AppMenuCommand::ToggleMissingAssets);
+    b.menu("window.assetReferences", "References", AppMenuCommand::ToggleAssetReferences);
+    b.menu("window.frameDebugger", "Frame Debugger", AppMenuCommand::ToggleFrameDebugger);
+    b.menu("window.systems", "Systems", AppMenuCommand::ToggleSystems);
+    b.menu("window.jobsMemory", "Jobs & Memory", AppMenuCommand::ToggleJobsMemory);
+    b.menu("window.meshAudit", "Mesh Optimization Audit", AppMenuCommand::ToggleMeshAudit);
+    b.menu("window.buildReport", "Build Report", AppMenuCommand::ToggleBuildReport);
+    b.menu("window.animationStatistics", "Animation Statistics", AppMenuCommand::ToggleAnimationStatistics);
+    b.menu("window.mcpActivity", "MCP Server", AppMenuCommand::ToggleMcpActivity);
+    b.menu("window.vcs.commit", "Commit", AppMenuCommand::ToggleVcsCommit);
+    b.menu("window.vcs.history", "History", AppMenuCommand::ToggleVcsHistory);
+    b.menu("window.vcs.sceneDiff", "Scene Diff", AppMenuCommand::ToggleVcsSceneDiff);
+    b.menu("window.vcs.conflicts", "Conflicts", AppMenuCommand::ToggleVcsConflicts);
+    b.menu("window.detachableWindows", "Detachable Windows", AppMenuCommand::ToggleDetachableWindows);
+
+    b.group = "Layouts";
+    b.menu("window.layouts.apply", "Apply Layout", AppMenuCommand::LayoutApply).description = "Switch to a saved window layout";
+    b.menu("window.layouts.save", "Save Layout...", AppMenuCommand::LayoutSave).description = "Save the window layout as a named preset";
+    b.menu("window.layouts.rename", "Rename Layout", AppMenuCommand::LayoutRename);
+    b.menu("window.layouts.delete", "Delete Layout", AppMenuCommand::LayoutDelete);
+    b.menu("window.layouts.saveToFile", "Save Layout to File...", AppMenuCommand::LayoutSaveToFile);
+    b.menu("window.layouts.loadFromFile", "Load Layout from File...", AppMenuCommand::LayoutLoadFromFile);
+    b.menu("window.layouts.reset", "Reset Layout", AppMenuCommand::ResetLayout).description = "Apply the Default layout";
+
+    b.group = "Help";
+    b.menu("help.about", "About JasperEngine", AppMenuCommand::About);
+    b.menu("help.documentation", "Documentation", AppMenuCommand::Documentation, C::Global, "F1");
+    b.menu("help.keyboardShortcuts", "Keyboard Shortcuts", AppMenuCommand::KeyboardShortcuts);
+    b.menu("help.reportIssue", "Report an Issue...", AppMenuCommand::ReportIssue);
+
+    // The Tile Palette (S50 R64): the window, or a Scene view with a tile tool up (these keys win
+    // over the Scene view's L, [, ], Delete and the gizmo keys then: first in the catalog)
+    b.group = "Tile Palette";
+    b.add("tilePalette.select", "Select Tool", C::TilePalette, "S").description = "Draw a selection of cells: move, copy into the brush, delete";
+    b.add("tilePalette.paint", "Paint Tool", C::TilePalette, "B").description = "Paint the chosen tiles in the Scene view (Shift erases, Ctrl picks)";
+    b.add("tilePalette.box", "Box Tool", C::TilePalette, "U").description = "Fill a rectangle of cells";
+    b.add("tilePalette.line", "Line Tool", C::TilePalette, "L").description = "Paint a line of cells";
+    b.add("tilePalette.flood", "Flood Tool", C::TilePalette, "G").description = "Flood fill contiguous equal cells";
+    b.add("tilePalette.eraser", "Eraser Tool", C::TilePalette, "D").description = "Erase cells";
+    b.add("tilePalette.picker", "Picker Tool", C::TilePalette, "I").description = "Take a cell's tile as the brush";
+    b.add("tilePalette.rotateCW", "Rotate Brush Clockwise", C::TilePalette, "]").repeat = true;
+    b.add("tilePalette.rotateCCW", "Rotate Brush Counter-Clockwise", C::TilePalette, "[").repeat = true;
+    b.add("tilePalette.flipX", "Flip Brush Horizontally", C::TilePalette, "Shift+[").repeat = true;
+    b.add("tilePalette.flipY", "Flip Brush Vertically", C::TilePalette, "Shift+]").repeat = true;
+    b.add("tilePalette.copySelection", "Copy Cells into the Brush", C::TilePalette, "Ctrl+C");
+    b.add("tilePalette.deleteSelection", "Delete Selected Cells", C::TilePalette, "Delete", "Backspace");
+
+    b.group = "Tools";
+    b.add("tools.hand", "Hand Tool", C::Editor, "Q").description = "Pan the Scene view";
+    b.add("tools.move", "Move Tool", C::Editor, "W");
+    b.add("tools.rotate", "Rotate Tool", C::Editor, "E");
+    b.add("tools.scale", "Scale Tool", C::Editor, "R");
+    b.add("tools.rect", "Rect Tool", C::Editor, "T").description = "2D and UI scenes";
+    b.add("tools.toggleGlobalLocal", "Toggle Global/Local", C::Editor, "X").description =
+        "Toggle tool handle rotation between Global and Local";
+    b.add("tools.physics", "Physics", C::Editor, "G").description =
+        "Move, Rotate and Scale push the selection through a physics simulation (3D scenes, not in Play)";
+
+    b.group = "Scene View";
+    // S26 (docs/specs/S26-scene-view.md R14-R24): Alt+F as Unity's, Home kept
+    b.add("sceneView.frameAll", "Frame All", C::SceneView, "Alt+F", "Home").description =
+        "Frame everything the view shows and can pick";
+    b.add("sceneView.viewFront", "Front View", C::SceneView, "Numpad1");
+    b.add("sceneView.viewBack", "Back View", C::SceneView, "Ctrl+Numpad1");
+    b.add("sceneView.viewRight", "Right View", C::SceneView, "Numpad3");
+    b.add("sceneView.viewLeft", "Left View", C::SceneView, "Ctrl+Numpad3");
+    b.add("sceneView.viewTop", "Top View", C::SceneView, "Numpad7", "Ctrl+Numpad9");
+    b.add("sceneView.viewBottom", "Bottom View", C::SceneView, "Numpad9", "Ctrl+Numpad7");
+    b.add("sceneView.hideSelection", "Hide Selection", C::SceneView, "H").description =
+        "Hide the selection in the Scene view (again: show it)";
+    b.add("sceneView.showAll", "Show All", C::SceneView, "Alt+H").description = "Show every GameObject hidden in the Scene view";
+    // S41 R21: a 2D scene drawn through a Pixel Perfect Camera
+    b.add("sceneView.pixelZoom1x", "Pixel Zoom 1x", C::SceneView, "Alt+1").description =
+        "Pixel Zoom: one art pixel per screen pixel (a 2D scene with a Pixel Perfect Camera)";
+    b.add("sceneView.pixelZoomGame", "Pixel Zoom Game", C::SceneView, "Alt+2").description =
+        "Pixel Zoom: the Game view's pixel scale (a 2D scene with a Pixel Perfect Camera)";
+    b.add("sceneView.togglePickLock", "Toggle Pick Lock", C::SceneView, "L").description =
+        "Lock the selection against picking in the Scene view, or unlock it";
+    b.add("sceneView.measure", "Measure", C::SceneView, "M").description =
+        "Measure distances: drag from A to B (Esc ends it)";
+    b.add("sceneView.deleteMeasure", "Delete Measure", C::SceneView, "Delete", "Backspace").description =
+        "Delete the selected measure (while one is selected)";
+    // S75 R25: rebindable, no default key
+    b.add("navigation.pathTester", "Path Tester", C::SceneView).description =
+        "Query navigation paths in the Scene view: Shift+click the start, click the end (Esc ends it)";
+    for (int slot = 1; slot <= 9; slot++) {
+        static const char* recallIds[] = {"sceneView.recallBookmark1", "sceneView.recallBookmark2", "sceneView.recallBookmark3",
+                                          "sceneView.recallBookmark4", "sceneView.recallBookmark5", "sceneView.recallBookmark6",
+                                          "sceneView.recallBookmark7", "sceneView.recallBookmark8", "sceneView.recallBookmark9"};
+        static const char* storeIds[] = {"sceneView.storeBookmark1", "sceneView.storeBookmark2", "sceneView.storeBookmark3",
+                                         "sceneView.storeBookmark4", "sceneView.storeBookmark5", "sceneView.storeBookmark6",
+                                         "sceneView.storeBookmark7", "sceneView.storeBookmark8", "sceneView.storeBookmark9"};
+        static const char* recallNames[] = {"Recall Camera Bookmark 1", "Recall Camera Bookmark 2", "Recall Camera Bookmark 3",
+                                            "Recall Camera Bookmark 4", "Recall Camera Bookmark 5", "Recall Camera Bookmark 6",
+                                            "Recall Camera Bookmark 7", "Recall Camera Bookmark 8", "Recall Camera Bookmark 9"};
+        static const char* storeNames[] = {"Store Camera Bookmark 1", "Store Camera Bookmark 2", "Store Camera Bookmark 3",
+                                           "Store Camera Bookmark 4", "Store Camera Bookmark 5", "Store Camera Bookmark 6",
+                                           "Store Camera Bookmark 7", "Store Camera Bookmark 8", "Store Camera Bookmark 9"};
+        static const char* recallKeys[] = {"Shift+1", "Shift+2", "Shift+3", "Shift+4", "Shift+5", "Shift+6", "Shift+7", "Shift+8", "Shift+9"};
+        static const char* storeKeys[] = {"Ctrl+Shift+1", "Ctrl+Shift+2", "Ctrl+Shift+3", "Ctrl+Shift+4", "Ctrl+Shift+5",
+                                          "Ctrl+Shift+6", "Ctrl+Shift+7", "Ctrl+Shift+8", "Ctrl+Shift+9"};
+        b.add(recallIds[slot - 1], recallNames[slot - 1], C::SceneView, recallKeys[slot - 1]);
+        b.add(storeIds[slot - 1], storeNames[slot - 1], C::SceneView, storeKeys[slot - 1]);
+    }
+    b.gesture("sceneView.cycleCandidates", "Cycle Overlapping Objects", C::SceneView, "Ctrl+Mouse Wheel",
+              "Step through what lies under the pointer; the next click confirms");
+    b.gesture("sceneView.measureVertexSnap", "Measure: Snap to Vertices", C::SceneView, "Hold V",
+              "While measuring: the ends snap to the nearest vertex");
+    b.gesture("sceneView.flyThrough", "Fly Through (3D)", C::SceneView, "Right Mouse + W/A/S/D/Q/E",
+              "Hold Shift to move faster");
+    b.gesture("sceneView.orbit", "Orbit (3D)", C::SceneView, "Alt+Left Drag", "Orbit around the view's pivot");
+    b.gesture("sceneView.pan", "Pan", C::SceneView, "Middle Drag (2D: also Space+Left Drag)", "Move the view");
+    b.gesture("sceneView.zoom", "Zoom", C::SceneView, "Mouse Wheel", "Zoom the view");
+    b.gesture("sceneView.physicsDrop", "Drop (Physics)", C::SceneView, "Hold Space", "Drop the selection under gravity");
+    b.gesture("sceneView.physicsSnap", "Snap onto Surfaces (Physics)", C::SceneView, "Shift+Left Drag",
+              "Drag a selected object onto what is under the pointer");
+    b.gesture("sceneView.cancelGesture", "Cancel Gesture", C::SceneView, "Escape",
+              "Stops a physics gesture, the Paint Dye brush or the measure tool, or clears the lattice points (Ctrl+Z also undoes)");
+
+    b.group = "Lattice";
+    b.add("lattice.selectNone", "Select No Points", C::SceneView, "Alt+A");
+    b.add("lattice.invert", "Invert Point Selection", C::SceneView, "Ctrl+I");
+    b.add("lattice.expand", "Expand Point Selection", C::SceneView, "Ctrl+=", "Ctrl+NumpadAdd");
+    b.add("lattice.shrink", "Shrink Point Selection", C::SceneView, "Ctrl+-", "Ctrl+NumpadSubtract");
+    b.add("lattice.toggleFalloff", "Toggle Falloff", C::SceneView, "O").description = "Proportional editing of the lattice points";
+
+    // T6 R60: a Voxel Volume's brush, while it is armed and the pointer is over the Scene view
+    b.group = "Voxel Brush";
+    b.add("voxel.tool.dig", "Dig", C::VoxelBrush, "D").description = "Removes solid; Ctrl adds instead, Shift smooths";
+    b.add("voxel.tool.add", "Add", C::VoxelBrush, "A").description = "Adds solid; Ctrl digs instead, Shift smooths";
+    b.add("voxel.tool.smooth", "Smooth", C::VoxelBrush, "S");
+    b.add("voxel.tool.paint", "Paint", C::VoxelBrush, "P");
+    b.add("voxel.tool.pick", "Pick", C::VoxelBrush, "K").description = "The next click takes the material under the cursor";
+    b.add("voxel.brushSmaller", "Brush Smaller", C::VoxelBrush, "[").repeat = true;
+    b.add("voxel.brushLarger", "Brush Larger", C::VoxelBrush, "]").repeat = true;
+    b.add("voxel.disarm", "Put the Brush Down", C::VoxelBrush, "Escape").description = "Esc during a stroke cancels the stroke instead";
+    b.gesture("voxel.altClick", "Pick Material", C::VoxelBrush, "Alt+Left Click", "Takes the material under the cursor, with no stroke");
+    b.gesture("voxel.altDrag", "Orbit", C::VoxelBrush, "Alt+Left Drag", "Orbits the Scene view, as with every tool");
+
+    b.group = "Terrain";
+    b.add("terrain.brushSmaller", "Brush Smaller", C::SceneView, "[").repeat = true;   // also Paint Dye's radius
+    b.add("terrain.brushLarger", "Brush Larger", C::SceneView, "]").repeat = true;
+    b.add("terrain.brushWeaker", "Brush Weaker", C::SceneView, "Shift+[", "-").repeat = true;
+    b.add("terrain.brushStronger", "Brush Stronger", C::SceneView, "Shift+]", "=").repeat = true;
+
+    // T1 R57, Table 5: a terrain brush's keys, while it is armed and the pointer is over the Scene view
+    b.group = "Terrain Brush";
+    b.add("terrain.tool.raise", "Raise", C::TerrainBrush, "R").description = "Ctrl lowers, Shift smooths";
+    b.add("terrain.tool.setHeight", "Set Height", C::TerrainBrush, "H");
+    b.add("terrain.tool.smooth", "Smooth", C::TerrainBrush, "S");
+    b.add("terrain.tool.ramp", "Ramp", C::TerrainBrush, "A");
+    b.add("terrain.tool.noise", "Noise", C::TerrainBrush, "N");
+    b.add("terrain.tool.terrace", "Terrace", C::TerrainBrush, "T");
+    b.add("terrain.tool.erode", "Erode", C::TerrainBrush, "E");
+    b.add("terrain.tool.stamp", "Stamp", C::TerrainBrush, "K");
+    b.add("terrain.tool.paintTexture", "Paint Texture", C::TerrainBrush, "B");
+    b.add("terrain.tool.paintDetails", "Paint Details", C::TerrainBrush, "D");
+    b.add("terrain.tool.placeObjects", "Paint Trees", C::TerrainBrush, "P");
+    b.add("terrain.tool.cutHoles", "Cut Holes", C::TerrainBrush, "X").description = "Ctrl fills";
+    b.add("terrain.pick", "Pick Height", C::TerrainBrush, "I").description = "The next click takes Set Height's value from the terrain";
+    b.add("terrain.invertSlopeFilter", "Invert Slope Filter", C::TerrainBrush, "Y");
+    b.add("terrain.alternate", "Alternate", C::TerrainBrush, "C").description =
+        "The armed tool's alternate on or off: Lift Floors (Ctrl: Flatten Peaks) for Raise, Pick and Flatten for Set Height";
+    b.add("terrain.overlay.height", "Height Overlay", C::TerrainBrush, "1");
+    b.add("terrain.overlay.slope", "Slope Overlay", C::TerrainBrush, "2");
+    b.add("terrain.overlay.contours", "Contours Overlay", C::TerrainBrush, "3");
+    b.add("terrain.overlay.layerWeights", "Layer Weights Overlay", C::TerrainBrush, "4");
+    b.add("terrain.overlay.off", "Overlay Off", C::TerrainBrush, "0");
+    b.add("terrain.disarm", "Put the Brush Down", C::TerrainBrush, "Escape").description = "Esc during a stroke cancels the stroke instead";
+
+    // The Animation window editing a clip (docs/animation-clips.md): while it has focus
+    b.group = "Animation";
+    b.add("animation.playPause", "Play / Pause Preview", C::Animation, "Space");
+    b.add("animation.addKey", "Add Key", C::Animation, "K").description = "Key every property at the playhead";
+    b.add("animation.addKeyModified", "Key Modified Properties", C::Animation, "Shift+K").description =
+        "Key only the properties changed since the last key";
+    b.add("animation.previousFrame", "Previous Frame", C::Animation, ",").repeat = true;
+    b.add("animation.nextFrame", "Next Frame", C::Animation, ".").repeat = true;
+    b.add("animation.previousKey", "Previous Key", C::Animation, "Alt+,").repeat = true;
+    b.add("animation.nextKey", "Next Key", C::Animation, "Alt+.").repeat = true;
+    b.add("animation.delete", "Delete Keys", C::Animation, "Delete", "Backspace").description =
+        "The selected keys, else the selected event";
+    b.add("animation.copy", "Copy Keys", C::Animation, "Ctrl+C");
+    b.add("animation.paste", "Paste Keys", C::Animation, "Ctrl+V").description = "At the playhead";
+    b.add("animation.duplicate", "Duplicate Keys", C::Animation, "Ctrl+D");
+    b.add("animation.frameSelected", "Frame Selected Keys", C::Animation, "F");
+    b.add("animation.frameAll", "Frame All Keys", C::Animation, "A");
+    b.add("animation.record", "Record", C::Animation, "R").description = "Record mode on or off";
+    // timeline audio (S40 R10, R22): the selected cue or audio action, in either mode
+    b.add("animation.alignCueStart", "Align Start to Playhead", C::Animation).description = "The selected audio cue starts at the playhead";
+    b.add("animation.alignCuePeak", "Align Peak to Playhead", C::Animation, "Shift+A").description =
+        "The selected audio cue's loudest moment lands on the playhead";
+    b.add("animation.alignCueEnd", "Align End to Playhead", C::Animation).description = "The selected audio cue ends at the playhead";
+    b.add("animation.addAudioCue", "Add Audio Cue", C::Animation).description = "A clip or Sound Event at the playhead (clip mode)";
+    b.add("animation.addSourceCue", "Add Source Cue", C::Animation).description = "Starts an Audio Source of the hierarchy (clip mode)";
+    b.add("animation.addSnapshotCue", "Add Snapshot Cue", C::Animation).description = "A mixer snapshot transition (clip mode)";
+    b.add("animation.addAudioAction", "Add Audio Clip Action", C::Animation).description = "An audio action at the playhead (Animation sequence)";
+    b.add("animation.addSoundEventAction", "Add Sound Event Action", C::Animation).description =
+        "A Sound Event action at the playhead (Animation sequence)";
+    b.add("animation.addSnapshotAction", "Add Mixer Snapshot Action", C::Animation).description =
+        "A Mixer Snapshot action at the playhead (Animation sequence)";
+
+    // The Pose Animation window (docs/pose-animation.md): while it has focus, or in a Scene view
+    // posing its character
+    b.group = "Pose Animation";
+    b.add("pose.playPause", "Play / Pause Preview", C::PoseAnimation, "Space");
+    b.add("pose.selectPrevious", "Select Previous Pose", C::PoseAnimation, "Left").repeat = true;
+    b.add("pose.selectNext", "Select Next Pose", C::PoseAnimation, "Right").repeat = true;
+    b.add("pose.moveLeft", "Move Poses Left", C::PoseAnimation, "Shift+Left").repeat = true;
+    b.add("pose.moveRight", "Move Poses Right", C::PoseAnimation, "Shift+Right").repeat = true;
+    b.add("pose.selectFirst", "Select First Pose", C::PoseAnimation, "Home");
+    b.add("pose.selectLast", "Select Last Pose", C::PoseAnimation, "End");
+    b.add("pose.previousFrame", "Previous Frame", C::PoseAnimation, ",").repeat = true;
+    b.add("pose.nextFrame", "Next Frame", C::PoseAnimation, ".").repeat = true;
+    b.add("pose.rename", "Rename Pose", C::PoseAnimation, "F2");
+    b.add("pose.duplicate", "Duplicate Poses", C::PoseAnimation, "Ctrl+D");
+    b.add("pose.duplicateMirrored", "Duplicate Poses Mirrored", C::PoseAnimation, "Ctrl+Shift+D");
+    b.add("pose.mirror", "Mirror Poses", C::PoseAnimation, "M").description = "Swap the left and right sides";
+    b.add("pose.delete", "Delete Poses", C::PoseAnimation, "Delete", "Backspace");
+    b.add("pose.ground", "Ground Pose", C::PoseAnimation, "G").description = "Put the feet on the ground";
+    b.add("pose.copy", "Copy Pose", C::PoseAnimation, "Ctrl+C");
+    b.add("pose.paste", "Paste Pose", C::PoseAnimation, "Ctrl+V");
+    b.add("pose.add", "Add Pose", C::PoseAnimation, "N");
+    b.add("pose.globalEdit", "Global Edit", C::PoseAnimation, "E").description = "Edit every pose at once";
+
+    // The Sprite Preview window (docs/specs/S44-aseprite-import.md R31): while it has focus; , and .
+    // step as in Aseprite
+    b.group = "Sprite Preview";
+    b.add("spritePreview.playPause", "Play / Pause", C::SpritePreview, "Space");
+    b.add("spritePreview.previousFrame", "Previous Frame", C::SpritePreview, ",").repeat = true;
+    b.add("spritePreview.nextFrame", "Next Frame", C::SpritePreview, ".").repeat = true;
+    b.add("spritePreview.firstFrame", "First Frame", C::SpritePreview, "Home").description = "The first frame of the tag (or of the file)";
+    b.add("spritePreview.lastFrame", "Last Frame", C::SpritePreview, "End").description = "The last frame of the tag (or of the file)";
+    b.add("spritePreview.zoomIn", "Zoom In", C::SpritePreview, "=", "NumpadAdd").repeat = true;
+    b.add("spritePreview.zoomOut", "Zoom Out", C::SpritePreview, "-", "NumpadSubtract").repeat = true;
+
+    // The Pixel Art Check window (S42 R19): while it has focus
+    b.group = "Pixel Art Check";
+    b.add("pixelArtCheck.run", "Run Pixel Art Check", C::PixelArtCheck, "F5").description =
+        "Check the pixel-art rules again on the window's scope";
+    b.add("pixelArtCheck.fixSelected", "Fix Selected Finding", C::PixelArtCheck).description =
+        "Apply the selected finding's fix (one undo step)";
+    b.add("pixelArtCheck.fixAll", "Fix All Pixel Art Findings", C::PixelArtCheck).description =
+        "Preview every fix of the check, then apply them as one undo step";
+    // The Pixel Art Cleanup window (S46)
+    b.group = "Pixel Art Cleanup";
+    b.add("pixelArtCleanup.write", "Write Pixel Art Cleanup", C::PixelArtCleanup, "Ctrl+Enter").description =
+        "Write the shown result (one undo step)";
+    {
+        // the Lints tab steps through spots; the Frames tab nudges the player's frame a pixel
+        CommandDef& next = b.add("pixelArtCleanup.nextSpot", "Next Lint Spot", C::PixelArtCleanup, "Right", "Down");
+        next.description = "Lints tab: pan and zoom to the next spot";
+        next.repeat = true;
+        CommandDef& previous = b.add("pixelArtCleanup.previousSpot", "Previous Lint Spot", C::PixelArtCleanup, "Left", "Up");
+        previous.description = "Lints tab: pan and zoom to the previous spot";
+        previous.repeat = true;
+        const struct { const char* id; const char* name; const char* chord; } nudges[] = {
+            {"pixelArtCleanup.nudgeLeft", "Nudge Frame Left", "Alt+Left"}, {"pixelArtCleanup.nudgeRight", "Nudge Frame Right", "Alt+Right"},
+            {"pixelArtCleanup.nudgeUp", "Nudge Frame Up", "Alt+Up"}, {"pixelArtCleanup.nudgeDown", "Nudge Frame Down", "Alt+Down"}};
+        for (const auto& nudge : nudges) {
+            CommandDef& def = b.add(nudge.id, nudge.name, C::PixelArtCleanup, nudge.chord);
+            def.description = "Frames tab: move the player's frame one pixel (one undo step)";
+            def.repeat = true;
+        }
+    }
+    // The Palette window (S43): while it, or its Apply Palette dialog, has focus
+    b.group = "Palette";
+    b.add("palette.delete", "Delete Colours", C::Palette, "Delete", "Backspace");
+    b.add("palette.duplicate", "Duplicate Colours", C::Palette, "Ctrl+D");
+    b.add("palette.moveLeft", "Move Colours Left", C::Palette, "Alt+Left").repeat = true;
+    b.add("palette.moveRight", "Move Colours Right", C::Palette, "Alt+Right").repeat = true;
+    b.add("palette.flickerCompare", "Flicker Compare", C::Palette, "Space").description =
+        "Apply Palette: the After half shows Before, and back";
+
+    b.group = "Project";
+    b.add("project.copy", "Copy Assets", C::Project, "Ctrl+C");
+    b.add("project.cut", "Cut Assets", C::Project, "Ctrl+X");
+    b.add("project.paste", "Paste Assets", C::Project, "Ctrl+V");
+    b.add("project.duplicate", "Duplicate Assets", C::Project, "Ctrl+D");
+    b.add("project.selectAll", "Select All Assets", C::Project, "Ctrl+A");
+    b.add("project.delete", "Delete Assets", C::Project, "Delete", "Backspace");
+    b.add("project.rename", "Rename Asset", C::Project, "F2");
+    b.gesture("project.resizeItems", "Resize Items", C::Project, "Ctrl+Mouse Wheel", "Change the icon size in 16 px steps");
+
+    // the Title Designer, focused (docs/specs/S82-title-designer.md §6.5): Unity's keys
+    b.group = "Title Designer";
+    // S85 §6.10: the Animation panel's keys
+    b.add("titleAnimation.playPause", "Play / Pause Preview", C::TitleAnimation, "Space");
+    b.add("titleAnimation.stop", "Stop Preview", C::TitleAnimation, "Shift+Space");
+    b.add("titleAnimation.addKey", "Add Key", C::TitleAnimation, "K");
+    b.add("titleAnimation.addKeyModified", "Key Modified Fields", C::TitleAnimation, "Shift+K");
+    b.add("titleAnimation.previousFrame", "Previous Frame", C::TitleAnimation, ",");
+    b.add("titleAnimation.nextFrame", "Next Frame", C::TitleAnimation, ".");
+    b.add("titleAnimation.previousKey", "Previous Key", C::TitleAnimation, "Alt+,");
+    b.add("titleAnimation.nextKey", "Next Key", C::TitleAnimation, "Alt+.");
+    b.add("titleAnimation.delete", "Delete Keys", C::TitleAnimation, "Delete");
+    b.add("titleAnimation.copy", "Copy Keys", C::TitleAnimation, "Ctrl+C");
+    b.add("titleAnimation.paste", "Paste Keys", C::TitleAnimation, "Ctrl+V");
+    b.add("titleAnimation.duplicate", "Duplicate Keys", C::TitleAnimation, "Ctrl+D");
+    b.add("titleAnimation.frameSelected", "Frame Selected", C::TitleAnimation, "F");
+    b.add("titleAnimation.frameAll", "Frame All", C::TitleAnimation, "A");
+    b.add("titleAnimation.record", "Record", C::TitleAnimation, "R");
+    b.add("titleAnimation.toggleCurves", "Dopesheet / Curves", C::TitleAnimation, "Tab");
+    b.add("titleAnimation.addPreset", "Add Animation Preset...", C::TitleAnimation, "");
+    b.add("titleAnimation.saveAsPreset", "Save Animation as Preset...", C::TitleAnimation, "");
+
+    b.add("titleDesigner.toolHand", "Hand Tool", C::TitleDesigner, "Q");
+    b.add("titleDesigner.toolMove", "Move Tool", C::TitleDesigner, "W");
+    b.add("titleDesigner.toolRotate", "Rotate Tool", C::TitleDesigner, "E");
+    b.add("titleDesigner.toolScale", "Scale Tool", C::TitleDesigner, "R");
+    b.add("titleDesigner.toolRect", "Rect Tool", C::TitleDesigner, "T");
+    b.add("titleDesigner.togglePivot", "Toggle Pivot/Center", C::TitleDesigner, "Z");
+    b.add("titleDesigner.frameSelected", "Frame Selected", C::TitleDesigner, "F");
+    b.add("titleDesigner.fitCanvas", "Fit Canvas", C::TitleDesigner, "Home", "Alt+F");
+    b.add("titleDesigner.zoomActual", "Actual Size", C::TitleDesigner, "Shift+0");
+    b.add("titleDesigner.zoomIn", "Zoom In", C::TitleDesigner, "Ctrl+=");
+    b.add("titleDesigner.zoomOut", "Zoom Out", C::TitleDesigner, "Ctrl+-");
+    b.add("titleDesigner.editText", "Edit Text", C::TitleDesigner, "Enter");
+    b.add("titleDesigner.find", "Find Setting", C::TitleDesigner, "Ctrl+F");
+    b.add("titleDesigner.add", "Add...", C::TitleDesigner, "Ctrl+Shift+N");
+    b.add("titleDesigner.duplicate", "Duplicate", C::TitleDesigner, "Ctrl+D");
+    b.add("titleDesigner.delete", "Delete", C::TitleDesigner, "Delete", "Backspace");
+    b.add("titleDesigner.rename", "Rename", C::TitleDesigner, "F2");
+    b.add("titleDesigner.selectAll", "Select All Layers", C::TitleDesigner, "Ctrl+A");
+    b.add("titleDesigner.copy", "Copy Layers", C::TitleDesigner, "Ctrl+C");
+    b.add("titleDesigner.cut", "Cut Layers", C::TitleDesigner, "Ctrl+X");
+    b.add("titleDesigner.paste", "Paste Layers", C::TitleDesigner, "Ctrl+V");
+    b.add("titleDesigner.group", "Group", C::TitleDesigner, "Ctrl+G");
+    b.add("titleDesigner.ungroup", "Ungroup", C::TitleDesigner, "Ctrl+Shift+G");
+    b.add("titleDesigner.clip", "Clipping Mask", C::TitleDesigner, "Ctrl+Alt+G");
+    b.add("titleDesigner.forward", "Bring Forward", C::TitleDesigner, "Ctrl+]");
+    b.add("titleDesigner.backward", "Send Backward", C::TitleDesigner, "Ctrl+[");
+    b.add("titleDesigner.toFront", "Bring to Front", C::TitleDesigner, "Ctrl+Shift+]");
+    b.add("titleDesigner.toBack", "Send to Back", C::TitleDesigner, "Ctrl+Shift+[");
+    b.add("titleDesigner.toggleVisible", "Hide Layers", C::TitleDesigner, "H");
+    b.add("titleDesigner.toggleLock", "Lock Layers", C::TitleDesigner, "L");
+    b.add("titleDesigner.nudgeLeft", "Nudge Left", C::TitleDesigner, "Left").repeat = true;
+    b.add("titleDesigner.nudgeRight", "Nudge Right", C::TitleDesigner, "Right").repeat = true;
+    b.add("titleDesigner.nudgeUp", "Nudge Up", C::TitleDesigner, "Up").repeat = true;
+    b.add("titleDesigner.nudgeDown", "Nudge Down", C::TitleDesigner, "Down").repeat = true;
+    b.add("titleDesigner.nudgeLeftBig", "Nudge Left x10", C::TitleDesigner, "Shift+Left").repeat = true;
+    b.add("titleDesigner.nudgeRightBig", "Nudge Right x10", C::TitleDesigner, "Shift+Right").repeat = true;
+    b.add("titleDesigner.nudgeUpBig", "Nudge Up x10", C::TitleDesigner, "Shift+Up").repeat = true;
+    b.add("titleDesigner.nudgeDownBig", "Nudge Down x10", C::TitleDesigner, "Shift+Down").repeat = true;
+    b.add("titleDesigner.up", "Select Parent", C::TitleDesigner, "Escape");
+    b.add("titleDesigner.bake", "Bake Now", C::TitleDesigner, "Ctrl+B");
+    // S87 R51: rebindable, no default keys
+    b.add("titleDesigner.nextLanguage", "Next Language", C::TitleDesigner);
+    b.add("titleDesigner.previousLanguage", "Previous Language", C::TitleDesigner);
+    b.group = "Sound Browser";
+    b.add("audioCaptures.playMoment", "Play Moment", C::AudioCaptures, "Enter");
+    b.add("audioCaptures.stop", "Stop", C::AudioCaptures, "Escape");
+    b.add("audioCaptures.nextMoment", "Next Moment", C::AudioCaptures, "Down");
+    b.add("audioCaptures.previousMoment", "Previous Moment", C::AudioCaptures, "Up");
+    b.add("soundBrowser.focusSearch", "Search Sounds", C::SoundBrowser, "Ctrl+F");
+    b.add("soundBrowser.next", "Next Sound", C::SoundBrowser, "Down", "Right");
+    b.add("soundBrowser.previous", "Previous Sound", C::SoundBrowser, "Up", "Left");
+    b.add("soundBrowser.play", "Play or Stop Sound", C::SoundBrowser, "Space");
+    b.add("soundBrowser.playMatched", "Play Sound Loudness-Matched", C::SoundBrowser, "Shift+Space");
+    b.add("soundBrowser.use", "Use Sound", C::SoundBrowser, "Enter").description = "Selects it; a built-in clip is imported first";
+    b.add("soundBrowser.selectAll", "Select All Sounds", C::SoundBrowser, "Ctrl+A");
+    b.add("soundBrowser.stop", "Stop Sound or Clear Search", C::SoundBrowser, "Escape");
+
+    b.group = "Sound Event";
+    b.add("soundEvent.audition", "Audition x8", C::Editor).description = "The selected Sound Event's next 8 plays, rendered offline";
+    b.add("soundEvent.matchLevels", "Match Clip Levels", C::Editor).description = "The selected Sound Event's clips at their average loudness";
+    b.add("soundEvent.playAsMusic", "Play as Music", C::Editor).description = "The selected Sound Event as a music playlist, through the music system";
+
+    b.group = "Audio Clip";
+    b.add("audioClip.detectTempo", "Detect Tempo", C::Editor).description =
+        "The selected audio file's tempo, beats per bar and first beat, drawn in its Inspector; Use writes them";
+
+    b.group = "Console";
+    b.add("console.copy", "Copy Message", C::Console, "Ctrl+C");
+
+    // The Curve window (docs/editor/curves.md): while it has focus
+    b.group = "Curve";
+    b.add("curve.frame", "Frame Curve", C::Curve, "F").description = "The selected keys, else the whole curve";
+    b.add("curve.delete", "Delete Curve Keys", C::Curve, "Delete", "Backspace");
+    b.add("curve.copy", "Copy Curve Keys", C::Curve, "Ctrl+C");
+    b.add("curve.paste", "Paste Curve Keys", C::Curve, "Ctrl+V").description = "At the pointer's time, else at the last click's";
+
+    // The Color window (docs/editor/color-picker.md): while it has focus
+    b.group = "Color Picker";
+    b.add("colorPicker.eyedropper", "Eyedropper", C::ColorPicker, "I").description = "Take a colour from anywhere on the screen";
+
+    return out;
+}

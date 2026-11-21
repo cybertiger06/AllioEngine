@@ -1,0 +1,91 @@
+// (c) Eduardo Doria and contributors
+// SPDX-License-Identifier: MIT
+
+#include "InterleavedBuffer.h"
+#include "Log.h"
+#include <cstdlib>
+
+using namespace jasperengine;
+
+InterleavedBuffer::InterleavedBuffer(): Buffer(){
+    vertexSize = 0;
+}
+
+InterleavedBuffer::~InterleavedBuffer(){
+
+}
+
+InterleavedBuffer::InterleavedBuffer(const InterleavedBuffer& rhs): Buffer(rhs){
+    vectorBuffer = rhs.vectorBuffer;
+    vertexSize = rhs.vertexSize;
+
+    data = vectorBuffer.empty() ? nullptr : &vectorBuffer[0];
+}
+
+InterleavedBuffer& InterleavedBuffer::operator=(const InterleavedBuffer& rhs){
+    Buffer::operator =(rhs);
+
+    vectorBuffer = rhs.vectorBuffer;
+    vertexSize = rhs.vertexSize;
+
+    data = vectorBuffer.empty() ? nullptr : &vectorBuffer[0];
+
+    return *this;
+}
+
+bool InterleavedBuffer::increase(size_t newSize) {
+    if (newSize >= vectorBuffer.size()) {
+        try {
+            vectorBuffer.resize(newSize);
+            data = vectorBuffer.empty() ? nullptr : &vectorBuffer[0];
+            return Buffer::increase(newSize);
+        }
+        catch (const std::bad_alloc& e) {
+            Log::error("Failed to increase buffer: out of memory");
+            return false;
+        }
+    }
+    return false;
+}
+
+void InterleavedBuffer::clearAll(){
+    Buffer::clearAll();
+    vertexSize = 0;
+    vectorBuffer.clear();
+    data = nullptr;
+}
+
+void InterleavedBuffer::clear(){
+    Buffer::clear(); 
+
+    vertexSize = 0;
+    vectorBuffer.clear();
+    data = nullptr;
+}
+
+void InterleavedBuffer::addAttribute(AttributeType attribute, int elements){
+    addAttribute(attribute, elements, false);
+}
+
+void InterleavedBuffer::addAttribute(AttributeType attribute, int elements, bool perInstance){
+    if (vectorBuffer.size() == 0) {
+        Attribute attData;
+        attData.setElements(elements);
+        attData.setOffset(vertexSize);
+        attData.setPerInstance(perInstance);
+
+        vertexSize += elements * sizeof(float);
+
+        Buffer::addAttribute(attribute, attData);
+
+        setStride(vertexSize);
+    }
+}
+
+unsigned int InterleavedBuffer::getVertexSize() const { 
+    return vertexSize; 
+}
+
+void InterleavedBuffer::setVertexSize(unsigned int size) { 
+    vertexSize = size;
+}

@@ -1,0 +1,102 @@
+// (c) Eduardo Doria and contributors
+// SPDX-License-Identifier: MIT
+
+#pragma once
+
+#include "command/Command.h"
+#include "command/CommandNames.h"
+#include "Scene.h"
+#include "Catalog.h"
+
+namespace jasperengine::editor {
+
+    template <typename T>
+    struct ScenePropertyCmdValue {
+        T oldValue;
+        T newValue;
+    };
+
+    template <typename T>
+    class ScenePropertyCmd : public Command {
+
+    private:
+        // resolved via project->getScene(sceneId) at execute/undo time: Project::scenes is a
+        // std::vector, so a stored SceneProject* would dangle after any scene open/create
+        Project* project;
+        uint32_t sceneId;
+        std::string propertyName;
+        ScenePropertyCmdValue<T> value;
+
+        bool wasModified;
+
+        // what a setting changes beyond the scene: the Canvas Scaler relays the edit-mode UI out
+        void applied(SceneProject* sceneProject) {
+            if (propertyName == "canvas_scaler" && sceneProject->playState == ScenePlayState::STOPPED) {
+                project->applyEditCanvasScale(sceneProject->scene, sceneProject->sceneType, sceneProject->sceneRender);
+                sceneProject->needUpdateRender = true;
+            }
+        }
+
+    public:
+        ScenePropertyCmd(Project* project, uint32_t sceneId, const std::string& propertyName, const T& newValue) {
+            this->project = project;
+            this->sceneId = sceneId;
+            this->propertyName = propertyName;
+            this->value.newValue = newValue;
+
+            SceneProject* sceneProject = project->getScene(sceneId);
+            this->wasModified = sceneProject ? sceneProject->isModified : false;
+        }
+
+        bool execute() override {
+            SceneProject* sceneProject = project->getScene(sceneId);
+            if (!sceneProject) {
+                return false;
+            }
+
+            // Store the old value before changing it
+            value.oldValue = Catalog::getSceneProperty<T>(sceneProject->scene, propertyName);
+            Catalog::setSceneProperty<T>(sceneProject->scene, propertyName, value.newValue);
+            applied(sceneProject);
+
+            sceneProject->isModified = true;
+
+            return true;
+        }
+
+        void undo() override {
+            SceneProject* sceneProject = project->getScene(sceneId);
+            if (!sceneProject) {
+                return;
+            }
+
+            Catalog::setSceneProperty<T>(sceneProject->scene, propertyName, value.oldValue);
+            applied(sceneProject);
+
+            sceneProject->isModified = wasModified;
+        }
+
+        // Render/physics settings only; scene names belong to SceneNameCmd.
+        bool affectsStructure() const override { return false; }
+
+        // "Set Ambient Light (Level1)": the scene's name
+        std::string describe() const override { return "Set " + CommandNames::property(propertyName) + " (" + CommandNames::scene(project, sceneId) + ")"; }
+        const char* typeName() const override { return "ScenePropertyCmd"; }
+
+        bool mergeWith(editor::Command* otherCommand) override {
+            ScenePropertyCmd* otherCmd = dynamic_cast<ScenePropertyCmd*>(otherCommand);
+            if (otherCmd != nullptr) {
+                if (project == otherCmd->project && sceneId == otherCmd->sceneId && propertyName == otherCmd->propertyName) {
+                    // Update oldValue from the earliest command
+                    value.oldValue = otherCmd->value.oldValue;
+
+                    wasModified = wasModified && otherCmd->wasModified;
+
+                    return true;
+                }
+            }
+            return false;
+        }
+    };
+
+}

@@ -1,0 +1,40 @@
+// (c) Eduardo Doria and contributors
+// SPDX-License-Identifier: MIT
+
+#ifndef IBLENVIRONMENT_H
+#define IBLENVIRONMENT_H
+
+#include "texture/TextureData.h"
+#include "render/TextureRender.h"
+#include "math/Vector3.h"
+#include <array>
+#include <string>
+
+namespace jasperengine{
+
+    // Generates image based lighting (IBL) environment maps on CPU from a
+    // LDR cubemap, following the maps used by glTF-Sample-Renderer:
+    //  - lambertian (irradiance) cubemap, cosine convolved and divided by PI
+    //  - GGX prefiltered cubemap, roughness mapped to mip levels
+    class JASPERENGINE_API IBLEnvironment{
+    public:
+        static const int SPECULAR_BASE_SIZE = 128;
+        static const int SPECULAR_MIPS = 8;     // 128,64,32,16,8,4,2,1 (shader ENV_GGX_LODS = SPECULAR_MIPS - 1)
+        static const int IRRADIANCE_SIZE = 16;
+
+        // the horizon ring of the height fog's Sky colour mode: the sky's mean linear colour from
+        // 0 to 5 degrees above the horizon in HORIZON_AZIMUTHS sectors of the cubemap's own
+        // azimuth (sector k centred on (sin a, 0, cos a), a = 2 pi k / HORIZON_AZIMUTHS)
+        static const int HORIZON_AZIMUTHS = 16;
+        typedef std::array<Vector3, HORIZON_AZIMUTHS> HorizonRing;
+
+        // faces follow the cubemap convention: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
+        // whether generate can read the faces on the CPU (a cook has no pixels but its CPU copy)
+        static bool canGenerate(std::array<TextureData,6>& faces);
+        static bool generate(const std::string& label, std::array<TextureData,6>& faces, TextureRender& irradianceMap, TextureRender& prefilteredMap,
+                             HorizonRing* horizonRing = nullptr);
+    };
+
+}
+
+#endif //IBLENVIRONMENT_H

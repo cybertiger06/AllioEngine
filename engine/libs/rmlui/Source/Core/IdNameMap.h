@@ -1,0 +1,130 @@
+#pragma once
+
+#include "../../Include/RmlUi/Core/Header.h"
+#include "../../Include/RmlUi/Core/Types.h"
+#include <algorithm>
+
+namespace Rml {
+
+template <typename ID>
+class IdNameMap {
+	Vector<String> name_map; // IDs are indices into the name_map
+	UnorderedMap<String, ID> reverse_map;
+	size_t num_reserved = 0; // Defined IDs without a name, see ReserveUnnamed().
+	size_t num_released = 0; // Custom IDs whose name was released (fork, phase 5: unregistered custom properties).
+
+protected:
+	IdNameMap(size_t num_ids_to_reserve)
+	{
+		static_assert((int)ID::Invalid == 0, "Invalid id must be zero");
+		name_map.reserve(num_ids_to_reserve);
+		reverse_map.reserve(num_ids_to_reserve);
+		AddPair(ID::Invalid, "invalid");
+	}
+
+public:
+	void AddPair(ID id, const String& name)
+	{
+		// Should only be used for defined IDs
+		if ((size_t)id >= name_map.size())
+			name_map.resize(1 + (size_t)id);
+		else if (name_map[(size_t)id].empty() && num_reserved > 0)
+			num_reserved -= 1;
+		name_map[(size_t)id] = name;
+		bool inserted = reverse_map.emplace(name, id).second;
+		RMLUI_ASSERT(inserted);
+		(void)inserted;
+	}
+
+	/// Reserves every defined ID that has no name yet: the ID is declared (phase-3 groundwork declares the IDs of the
+	/// features still to be implemented) but nothing is registered under it. Custom IDs are created after it.
+	void ReserveUnnamed(ID number_of_defined_ids)
+	{
+		if (name_map.size() < (size_t)number_of_defined_ids)
+			name_map.resize((size_t)number_of_defined_ids);
+		num_reserved = (size_t)std::count_if(name_map.begin(), name_map.begin() + (size_t)number_of_defined_ids,
+			[](const String& name) { return name.empty(); });
+	}
+	size_t GetNumReserved() const { return num_reserved; }
+
+	// Fork (phase 5, registered custom properties): a custom id's name stops resolving to it (the id keeps its last name
+	// for GetName), and a released id takes a name again.
+	void ReleaseName(ID id)
+	{
+		const size_t index = static_cast<size_t>(id);
+		if (index >= name_map.size())
+			return;
+		auto it = reverse_map.find(name_map[index]);
+		if (it == reverse_map.end() || it->second != id)
+			return;
+		reverse_map.erase(it);
+		num_released += 1;
+	}
+	bool AssignName(ID id, const String& name)
+	{
+		const size_t index = static_cast<size_t>(id);
+		if (index >= name_map.size() || num_released == 0 || reverse_map.count(name) != 0)
+			return false;
+		auto it = reverse_map.find(name_map[index]);
+		if (it != reverse_map.end() && it->second == id)
+			return false; // (not released)
+		name_map[index] = name;
+		reverse_map.emplace(name, id);
+		num_released -= 1;
+		return true;
+	}
+	/// The number of ids given so far (defined, reserved and custom), the next custom id.
+	size_t GetNumIds() const { return name_map.size(); }
+
+	bool AssertAllInserted(ID number_of_defined_ids) const
+	{
+		std::ptrdiff_t cnt = std::count_if(name_map.begin(), name_map.end(), [](const String& name) { return !name.empty(); });
+		return cnt + (std::ptrdiff_t)num_reserved == (std::ptrdiff_t)number_of_defined_ids &&
+			reverse_map.size() + num_reserved == (size_t)number_of_defined_ids;
+	}
+
+	ID GetId(const String& name) const
+	{
+		auto it = reverse_map.find(name);
+		if (it != reverse_map.end())
+			return it->second;
+		return ID::Invalid;
+	}
+	const String& GetName(ID id) const
+	{
+		if (static_cast<size_t>(id) < name_map.size())
+			return name_map[static_cast<size_t>(id)];
+		return name_map[static_cast<size_t>(ID::Invalid)];
+	}
+
+	ID GetOrCreateId(const String& name)
+	{
+		// All predefined properties must be set (or reserved) before possibly adding custom properties here
+		RMLUI_ASSERT(name_map.size() == reverse_map.size() + num_reserved + num_released);
+
+		ID next_id = static_cast<ID>(name_map.size());
+
+		// Only insert if not already in list
+		auto pair = reverse_map.emplace(name, next_id);
+		const auto& it = pair.first;
+		bool inserted = pair.second;
+
+		if (inserted)
+			name_map.push_back(name);
+
+		// Return the property id that already existed, or the new one if inserted
+		return it->second;
+	}
+};
+
+class PropertyIdNameMap : public IdNameMap<PropertyId> {
+public:
+	PropertyIdNameMap(size_t reserve_num_properties) : IdNameMap(reserve_num_properties) {}
+};
+
+class ShorthandIdNameMap : public IdNameMap<ShorthandId> {
+public:
+	ShorthandIdNameMap(size_t reserve_num_shorthands) : IdNameMap(reserve_num_shorthands) {}
+};
+
+} // namespace Rml

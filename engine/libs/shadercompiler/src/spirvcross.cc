@@ -1,0 +1,793 @@
+// (c) Eduardo Doria and contributors
+// SPDX-License-Identifier: MIT
+
+#include "shadercompiler.h"
+
+#include "spirv_cross.hpp"
+#include "spirv_glsl.hpp"
+// The HLSL and MSL back ends are optional (see CMakeLists.txt): a runtime build carries
+// only the language its graphics backend reads
+#ifdef SHADERCOMPILER_HLSL
+#include "spirv_hlsl.hpp"
+#endif
+#ifdef SHADERCOMPILER_MSL
+#include "spirv_msl.hpp"
+#endif
+#include "spirv_parser.hpp"
+
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <unordered_map>
+
+//
+// From https://github.com/floooh/sokol-tools
+//
+// workaround for Compiler.comparison_ids being protected
+class UnprotectedCompiler: spirv_cross::Compiler {
+public:
+    bool is_comparison_sampler(const spirv_cross::SPIRType &type, uint32_t id) {
+        if (type.basetype == spirv_cross::SPIRType::Sampler) {
+            return comparison_ids.count(id) > 0;
+        }
+        return 0;
+    }
+    bool is_used_as_depth_texture(const spirv_cross::SPIRType &type, uint32_t id) {
+        if (type.basetype == spirv_cross::SPIRType::Image) {
+            return comparison_ids.count(id) > 0;
+        }
+        return 0;
+    }
+};
+
+using namespace shadercompiler;
+
+static attribute_type_t spirtype_to_attribute_type(const spirv_cross::SPIRType& type) {
+    if (type.basetype == spirv_cross::SPIRType::Float) {
+        if (type.columns == 1) {
+            switch (type.vecsize) {
+                case 1: return attribute_type_t::FLOAT;
+                case 2: return attribute_type_t::FLOAT2;
+                case 3: return attribute_type_t::FLOAT3;
+                case 4: return attribute_type_t::FLOAT4;
+            }
+        }
+    } else if (type.basetype == spirv_cross::SPIRType::Int) {
+        if (type.columns == 1) {
+            switch (type.vecsize) {
+                case 1: return attribute_type_t::INT;
+                case 2: return attribute_type_t::INT2;
+                case 3: return attribute_type_t::INT3;
+                case 4: return attribute_type_t::INT4;
+            }
+        }
+    }
+
+    return attribute_type_t::INVALID;
+}
+
+static uniform_type_t spirtype_to_uniform_type(const spirv_cross::SPIRType& type) {
+    if (type.basetype == spirv_cross::SPIRType::Float) {
+        if (type.columns == 1) {
+            switch (type.vecsize) {
+                case 1: return uniform_type_t::FLOAT;
+                case 2: return uniform_type_t::FLOAT2;
+                case 3: return uniform_type_t::FLOAT3;
+                case 4: return uniform_type_t::FLOAT4;
+            }
+        }
+        else {
+            if ((type.vecsize == 3) && (type.columns == 3)) {
+                return uniform_type_t::MAT3;
+            } else if ((type.vecsize == 4) && (type.columns == 4)) {
+                return uniform_type_t::MAT4;
+            }
+        }
+    } else if (type.basetype == spirv_cross::SPIRType::Int) {
+        if (type.columns == 1) {
+            switch (type.vecsize) {
+                case 1: return uniform_type_t::INT;
+                case 2: return uniform_type_t::INT2;
+                case 3: return uniform_type_t::INT3;
+                case 4: return uniform_type_t::INT4;
+            }
+        }
+    }
+
+    return uniform_type_t::INVALID;
+}
+
+static texture_type_t spirtype_to_image_type(const spirv_cross::SPIRType& type) {
+    if (type.image.arrayed) {
+        if (type.image.dim == spv::Dim2D) {
+            return texture_type_t::TEXTURE_ARRAY;
+        }
+    }
+    else {
+        switch (type.image.dim) {
+            case spv::Dim2D:    return texture_type_t::TEXTURE_2D;
+            case spv::DimCube:  return texture_type_t::TEXTURE_CUBE;
+            case spv::Dim3D:    return texture_type_t::TEXTURE_3D;
+            default: break;
+        }
+    }
+
+    return texture_type_t::INVALID;
+}
+
+static texture_samplertype_t spirtype_to_image_samplertype(const spirv_cross::SPIRType& type) {
+    if (type.image.depth) {
+        return texture_samplertype_t::DEPTH;
+    } else {
+        switch (type.basetype) {
+            case spirv_cross::SPIRType::Int:
+            case spirv_cross::SPIRType::Short:
+            case spirv_cross::SPIRType::SByte:
+                return texture_samplertype_t::SINT;
+            case spirv_cross::SPIRType::UInt:
+            case spirv_cross::SPIRType::UShort:
+            case spirv_cross::SPIRType::UByte:
+                return texture_samplertype_t::UINT;
+            default:
+                return texture_samplertype_t::FLOAT;
+        }
+    }
+}
+
+//
+// From https://github.com/floooh/sokol-tools
+//
+static bool can_flatten_uniform_block(const spirv_cross::Compiler* compiler, const spirv_cross::Resource& ub_res) {
+    const spirv_cross::SPIRType& ub_type = compiler->get_type(ub_res.base_type_id);
+    spirv_cross::SPIRType::BaseType basic_type = spirv_cross::SPIRType::Unknown;
+    for (int m_index = 0; m_index < (int)ub_type.member_types.size(); m_index++) {
+        const spirv_cross::SPIRType& m_type = compiler->get_type(ub_type.member_types[m_index]);
+        if (basic_type == spirv_cross::SPIRType::Unknown) {
+            basic_type = m_type.basetype;
+            if ((basic_type != spirv_cross::SPIRType::Float) && (basic_type != spirv_cross::SPIRType::Int)) {
+                return false;
+            }
+        }
+        else if (basic_type != m_type.basetype) {
+            return false;
+        }
+    }
+    return true;
+}
+
+//
+// From https://github.com/floooh/sokol-tools
+//
+static void flatten_uniform_blocks(spirv_cross::CompilerGLSL* compiler) {
+    /* this flattens each uniform block into a vec4 array, in WebGL/GLES2 this
+        allows more efficient uniform updates
+    */
+    spirv_cross::ShaderResources res = compiler->get_shader_resources();
+    for (const spirv_cross::Resource& ub_res: res.uniform_buffers) {
+        if (can_flatten_uniform_block(compiler, ub_res)){
+            compiler->flatten_buffer_block(ub_res.id);
+        }
+    }
+}
+
+//
+// From https://github.com/floooh/sokol-tools
+//
+static void to_combined_image_samplers(spirv_cross::CompilerGLSL* compiler) {
+    compiler->build_combined_image_samplers();
+    // give the combined samplers new names
+    uint32_t binding = 0;
+    for (auto& remap: compiler->get_combined_image_samplers()) {
+        const std::string img_name = compiler->get_name(remap.image_id);
+        const std::string smp_name = compiler->get_name(remap.sampler_id);
+        compiler->set_name(remap.combined_id, img_name + "_" + smp_name);
+        compiler->set_decoration(remap.combined_id, spv::DecorationBinding, binding++);
+    }
+}
+
+static bool validate_uniform_blocks_and_separate_image_samplers(const spirv_cross::Compiler* compiler, const spirv_cross::ShaderResources& res, const input_t& input) {
+    for (const spirv_cross::Resource& ub_res: res.uniform_buffers) {
+        const spirv_cross::SPIRType& ub_type = compiler->get_type(ub_res.base_type_id);
+        for (int m_index = 0; m_index < (int)ub_type.member_types.size(); m_index++) {
+            const spirv_cross::SPIRType& m_type = compiler->get_type(ub_type.member_types[m_index]);
+            if ((m_type.basetype != spirv_cross::SPIRType::Float) && (m_type.basetype != spirv_cross::SPIRType::Int)) {
+                fprintf(stderr, "%s: uniform block '%s': uniform blocks can only contain float or int base types\n", input.filename.c_str(), ub_res.name.c_str());
+                return false;
+            }
+            if (m_type.array.size() > 0) {
+                if (m_type.vecsize != 4) {
+                    fprintf(stderr, "%s: uniform block '%s': arrays must be of type vec4[], ivec4[] or mat4[]\n", input.filename.c_str(), ub_res.name.c_str());
+                    return false;
+                }
+                if (m_type.array.size() > 1) {
+                    fprintf(stderr, "%s: uniform block '%s': arrays must be 1-dimensional\n", input.filename.c_str(), ub_res.name.c_str());
+                    return false;
+                }
+            }
+        }
+    }
+    if (res.sampled_images.size() > 0) {
+        fprintf(stderr, "%s: combined image sampler '%s' detected, please use separate textures and samplers\n", input.filename.c_str(), res.sampled_images[0].name.c_str());
+        return false;
+    }
+    return true;
+}
+
+//
+// From https://github.com/floooh/sokol-tools
+//
+static uint32_t base_slot(const shadercompiler::lang_type_t lang, const stage_type_t stage_type, BindingType type){
+    int res = 0;
+
+    // SPIRV (Vulkan): sokol_gfx.h requires uniform blocks in descriptor set 0
+    // (bindings unique across the whole shader, 0..15) and textures, samplers
+    // and storage buffers sharing descriptor set 1 (bindings unique across all
+    // of them, 0..127). Uniqueness is achieved with disjoint per-type and
+    // per-stage base offsets.
+    switch (type) {
+        case BindingType::UNIFORM_BLOCK:
+            if (lang == LANG_SPIRV) {
+                res = (stage_type == STAGE_VERTEX) ? 0 : MaxUniformBlocks;
+            }
+            break;
+        case BindingType::IMAGE_SAMPLER:
+            if (lang == LANG_GLSL) {
+                res = (stage_type == STAGE_VERTEX) ? 0 : MaxImageSamplers;
+            }
+            break;
+        case BindingType::IMAGE:
+            if (lang == LANG_SPIRV) {
+                res = (stage_type == STAGE_VERTEX) ? 0 : MaxImages;
+            }
+            break;
+        case BindingType::SAMPLER:
+            if (lang == LANG_SPIRV) {
+                res = 2 * MaxImages + ((stage_type == STAGE_VERTEX) ? 0 : MaxSamplers);
+            }
+            break;
+        case BindingType::STORAGE_BUFFER:
+            if (lang == LANG_MSL) {
+                res = MaxUniformBlocks;
+            } else if (lang == LANG_HLSL) {
+                res = MaxImages;
+            } else if (lang == LANG_GLSL) {
+                if (stage_type == STAGE_FRAGMENT) {
+                    res = MaxStorageBuffers;
+                }
+            } else if (lang == LANG_SPIRV) {
+                res = 2 * MaxImages + 2 * MaxSamplers + ((stage_type == STAGE_VERTEX) ? 0 : MaxStorageBuffers);
+            }
+            break;
+    }
+    return res;
+}
+
+// SPIRV (Vulkan): textures, samplers and storage buffers go in descriptor set 1,
+// everything else (uniform blocks) in descriptor set 0
+static uint32_t descriptor_set(const shadercompiler::lang_type_t lang, BindingType type){
+    if (lang == LANG_SPIRV && type != BindingType::UNIFORM_BLOCK) {
+        return 1;
+    }
+    return 0;
+}
+
+static void fix_bind_slots(spirv_cross::Compiler* compiler, const stage_type_t stage_type, const shadercompiler::lang_type_t lang) {
+    spirv_cross::ShaderResources shader_resources = compiler->get_shader_resources();
+
+    auto fix_resources = [&](const spirv_cross::SmallVector<spirv_cross::Resource>& resources, BindingType type) {
+        uint32_t binding = base_slot(lang, stage_type, type);
+        for (const spirv_cross::Resource& res: resources) {
+            compiler->set_decoration(res.id, spv::DecorationDescriptorSet, descriptor_set(lang, type));
+            compiler->set_decoration(res.id, spv::DecorationBinding, binding++);
+        }
+    };
+    fix_resources(shader_resources.uniform_buffers, BindingType::UNIFORM_BLOCK);
+    fix_resources(shader_resources.sampled_images, BindingType::IMAGE_SAMPLER);
+    fix_resources(shader_resources.separate_images, BindingType::IMAGE);
+    fix_resources(shader_resources.separate_samplers, BindingType::SAMPLER);
+    fix_resources(shader_resources.storage_buffers, BindingType::STORAGE_BUFFER);
+}
+
+// Rewrites OpDecorate DescriptorSet/Binding literals in the SPIRV binary so the
+// emitted bytecode matches the slot allocation of fix_bind_slots() (the binary
+// is fed directly to Vulkan, there is no cross-compile step to apply decorations)
+static bool patch_spirv_bind_slots(std::vector<uint32_t>& bytecode, const stage_type_t stage_type, const shadercompiler::lang_type_t lang, const input_t& input) {
+    // compute the target set/binding per resource id (same logic and ordering as fix_bind_slots)
+    spirv_cross::Parser spirv_parser(bytecode);
+    spirv_parser.parse();
+    spirv_cross::Compiler compiler(std::move(spirv_parser.get_parsed_ir()));
+    fix_bind_slots(&compiler, stage_type, lang);
+
+    struct slot_t { uint32_t set; uint32_t binding; bool set_patched; bool binding_patched; };
+    std::unordered_map<uint32_t, slot_t> slots;
+
+    spirv_cross::ShaderResources res = compiler.get_shader_resources();
+    auto collect = [&compiler, &slots](const spirv_cross::SmallVector<spirv_cross::Resource>& resources) {
+        for (const spirv_cross::Resource& r: resources) {
+            slots[r.id] = {
+                compiler.get_decoration(r.id, spv::DecorationDescriptorSet),
+                compiler.get_decoration(r.id, spv::DecorationBinding),
+                false, false
+            };
+        }
+    };
+    collect(res.uniform_buffers);
+    collect(res.separate_images);
+    collect(res.separate_samplers);
+    collect(res.storage_buffers);
+
+    // SPIRV binary layout: 5-word header, then instructions of
+    // [wordcount<<16 | opcode, operands...]; OpDecorate is
+    // [op, target-id, decoration, literal...]
+    const uint32_t SpvOpDecorate = 71;
+    const uint32_t SpvDecorationBinding = 33;
+    const uint32_t SpvDecorationDescriptorSet = 34;
+
+    size_t offset = 5;
+    while (offset < bytecode.size()) {
+        const uint32_t opcode = bytecode[offset] & 0xffff;
+        const uint32_t word_count = bytecode[offset] >> 16;
+        if (word_count == 0 || offset + word_count > bytecode.size()) {
+            fprintf(stderr, "%s: malformed SPIRV binary\n", input.filename.c_str());
+            return false;
+        }
+        if (opcode == SpvOpDecorate && word_count == 4) {
+            auto it = slots.find(bytecode[offset + 1]);
+            if (it != slots.end()) {
+                if (bytecode[offset + 2] == SpvDecorationDescriptorSet) {
+                    bytecode[offset + 3] = it->second.set;
+                    it->second.set_patched = true;
+                } else if (bytecode[offset + 2] == SpvDecorationBinding) {
+                    bytecode[offset + 3] = it->second.binding;
+                    it->second.binding_patched = true;
+                }
+            }
+        }
+        offset += word_count;
+    }
+
+    for (const auto& [id, slot]: slots) {
+        if (!slot.set_patched || !slot.binding_patched) {
+            fprintf(stderr, "%s: resource id %u is missing DescriptorSet/Binding decorations in SPIRV\n", input.filename.c_str(), id);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool parse_stage_reflection(spirvcross_t& spirvcross, const spirv_cross::Compiler* compiler) {
+
+    spirv_cross::ShaderResources shd_resources = compiler->get_shader_resources();
+
+    // Stage
+    switch (compiler->get_execution_model()) {
+        case spv::ExecutionModelVertex:   spirvcross.stage_type = STAGE_VERTEX; break;
+        case spv::ExecutionModelFragment: spirvcross.stage_type = STAGE_FRAGMENT; break;
+        default: fprintf(stderr, "INVALID Stage\n"); return false;
+    }
+
+    // Entry function
+    const auto entry_points = compiler->get_entry_points_and_stages();
+    for (const auto& item: entry_points) {
+        if (compiler->get_execution_model() == item.execution_model) {
+            spirvcross.entry_point = item.name;
+            break;
+        }
+    }
+
+    // Stage inputs and outputs
+    for (const spirv_cross::Resource& res_attr: shd_resources.stage_inputs) {
+        s_attr_t attr;
+        const uint32_t loc = compiler->get_decoration(res_attr.id, spv::DecorationLocation);
+        const spirv_cross::SPIRType& type = compiler->get_type(res_attr.type_id);
+
+        attr.location = loc;
+        attr.name = res_attr.name;
+        // Only vertex inputs use the engine's attribute semantic table.
+        if (spirvcross.stage_type == STAGE_VERTEX) {
+            if (loc >= MaxVertexAttribs) {
+                fprintf(stderr, "Vertex input '%s' location %u exceeds the vertex attribute limit %d\n",
+                    res_attr.name.c_str(), loc, MaxVertexAttribs - 1);
+                return false;
+            }
+            attr.semantic_name = k_attrib_sem_names[loc];
+            attr.semantic_index = k_attrib_sem_indices[loc];
+        } else {
+            attr.semantic_name = "TEXCOORD";
+            attr.semantic_index = loc;
+        }
+        attr.type = spirtype_to_attribute_type(type);
+
+        spirvcross.inputs.push_back(attr);
+    }
+    for (const spirv_cross::Resource& res_attr: shd_resources.stage_outputs) {
+        s_attr_t attr;
+        const uint32_t loc = compiler->get_decoration(res_attr.id, spv::DecorationLocation);
+        const spirv_cross::SPIRType& type = compiler->get_type(res_attr.type_id);
+        
+        attr.location = loc;
+        attr.name = res_attr.name;
+        attr.semantic_name = spirvcross.stage_type == STAGE_FRAGMENT ? "SV_Target" : "TEXCOORD";
+        attr.semantic_index = loc;
+        attr.type = spirtype_to_attribute_type(type);
+
+        spirvcross.outputs.push_back(attr);
+    }
+
+    // uniform blocks
+    for (const spirv_cross::Resource& ub_res: shd_resources.uniform_buffers) {
+        s_uniform_block_t ub;
+
+        const spirv_cross::SPIRType& ub_type = compiler->get_type(ub_res.base_type_id);
+
+        ub.name = ub_res.name;
+        ub.inst_name = compiler->get_name(ub_res.id);
+        if (ub.inst_name.empty()){
+            ub.inst_name = compiler->get_fallback_name(ub_res.id);
+        }
+        ub.set = compiler->get_decoration(ub_res.id, spv::DecorationDescriptorSet);
+        ub.binding = compiler->get_decoration(ub_res.id, spv::DecorationBinding);
+        ub.size_bytes = (int) compiler->get_declared_struct_size(ub_type);
+        ub.flattened = can_flatten_uniform_block(compiler, ub_res);
+
+        for (int m_index = 0; m_index < (int)ub_type.member_types.size(); m_index++) {
+            s_uniform_t uniform;
+            const spirv_cross::SPIRType& m_type = compiler->get_type(ub_type.member_types[m_index]);
+
+            uniform.name = compiler->get_member_name(ub_res.base_type_id, m_index);
+            uniform.offset = compiler->type_struct_member_offset(ub_type, m_index);
+            uniform.type = spirtype_to_uniform_type(m_type);            
+            if (m_type.array.size() > 0) {
+                uniform.array_count = m_type.array[0];
+            }
+
+            ub.uniforms.push_back(uniform);
+        }
+
+        spirvcross.uniform_blocks.push_back(ub);
+    }
+
+    // storage buffers
+    for (const spirv_cross::Resource& sbuf_res: shd_resources.storage_buffers) {
+        s_storage_buffer_t sb;
+
+        const spirv_cross::SPIRType& struct_type = compiler->get_type(sbuf_res.base_type_id);
+        if (struct_type.basetype != spirv_cross::SPIRType::Struct) {
+            fprintf(stderr, "toplevel item %s is not a struct\n", sbuf_res.name.c_str());
+            return false;
+        }
+
+        sb.name = sbuf_res.name;
+        sb.inst_name = compiler->get_name(sbuf_res.id);
+        if (sb.inst_name.empty()) {
+            sb.inst_name = compiler->get_fallback_name(sbuf_res.id);
+        }
+        sb.set = compiler->get_decoration(sbuf_res.id, spv::DecorationDescriptorSet);
+        sb.binding = compiler->get_decoration(sbuf_res.id, spv::DecorationBinding);
+        sb.readonly = compiler->get_buffer_block_flags(sbuf_res.id).get(spv::DecorationNonWritable);
+        sb.size_bytes = (int) compiler->get_declared_struct_size_runtime_array(struct_type, 1);
+        sb.type = storage_buffer_type_t::STRUCT;
+
+        spirvcross.storage_buffers.push_back(sb);
+    }
+
+    // (separate) images
+    for (const spirv_cross::Resource& img_res: shd_resources.separate_images) {
+        s_texture_t image;
+
+        const spirv_cross::SPIRType& img_type = compiler->get_type(img_res.type_id);
+
+        image.name = img_res.name;
+        image.set = compiler->get_decoration(img_res.id, spv::DecorationDescriptorSet);
+        image.binding = compiler->get_decoration(img_res.id, spv::DecorationBinding);
+        image.type = spirtype_to_image_type(img_type);
+        if (((UnprotectedCompiler*)compiler)->is_used_as_depth_texture(img_type, img_res.id)) {
+            image.sampler_type = texture_samplertype_t::DEPTH;
+        } else {
+            image.sampler_type = spirtype_to_image_samplertype(compiler->get_type(img_type.image.type));
+        }
+
+        spirvcross.textures.push_back(image);
+    }
+
+    // (separate) samplers
+    for (const spirv_cross::Resource& smp_res: shd_resources.separate_samplers) {
+        s_sampler_t sampler;
+
+        const spirv_cross::SPIRType& smp_type = compiler->get_type(smp_res.type_id);
+
+        sampler.name = smp_res.name;
+        sampler.set = compiler->get_decoration(smp_res.id, spv::DecorationDescriptorSet);
+        sampler.binding = compiler->get_decoration(smp_res.id, spv::DecorationBinding);
+        if (((UnprotectedCompiler*)compiler)->is_comparison_sampler(smp_type, smp_res.id)) {
+            sampler.type = sampler_type_t::COMPARISON;
+        } else {
+            sampler.type = sampler_type_t::FILTERING;
+        }
+
+        spirvcross.samplers.push_back(sampler);
+    }
+
+    // combined image samplers
+    for (auto& img_smp_res: compiler->get_combined_image_samplers()) {
+        s_texture_sampler_pair_t img_smp;
+        img_smp.name = compiler->get_name(img_smp_res.combined_id);
+        img_smp.texture_name = compiler->get_name(img_smp_res.image_id);
+        img_smp.sampler_name = compiler->get_name(img_smp_res.sampler_id);
+        spirvcross.texture_sampler_pairs.push_back(img_smp);
+    }
+
+    return true;
+}
+
+
+//
+// From https://github.com/floooh/sokol-tools
+//
+static bool parse_reflection(const std::vector<uint32_t>& bytecode, const stage_type_t stage_type, spirvcross_t& spirvcross, const shadercompiler::lang_type_t lang) {
+    // NOTE: do *NOT* use CompilerReflection here, this doesn't generate
+    // the right reflection info for depth textures and comparison samplers
+    spirv_cross::CompilerGLSL compiler(bytecode);
+    spirv_cross::CompilerGLSL::Options options;
+    options.emit_line_directives = false;
+    options.version = 430;
+    options.es = false;
+    options.vulkan_semantics = false;
+    options.enable_420pack_extension = false;
+    options.emit_uniform_buffer_as_plain_uniforms = true;
+    compiler.set_common_options(options);
+    flatten_uniform_blocks(&compiler);
+    to_combined_image_samplers(&compiler);
+    fix_bind_slots(&compiler, stage_type, lang);
+    // NOTE: we need to compile here, otherwise the reflection won't be
+    // able to detect depth-textures and comparison-samplers!
+    compiler.compile();
+
+    return parse_stage_reflection(spirvcross, &compiler);
+}
+
+
+static bool validate_inputs_and_outputs(const std::vector<spirvcross_t>& spirvcrossvec, const std::vector<input_t>& inputs){
+    int vsIndex = -1;
+    int fsIndex = -1;
+    for (int s = 0; s < inputs.size(); s++){
+        if (inputs[s].stage_type == stage_type_t::STAGE_VERTEX)
+            vsIndex = s;
+        if (inputs[s].stage_type == stage_type_t::STAGE_FRAGMENT)
+            fsIndex = s;
+    }
+
+    const auto& outputs = spirvcrossvec[vsIndex].outputs;
+    const auto& fragment_inputs = spirvcrossvec[fsIndex].inputs;
+    auto has_match = [](const s_attr_t& attr, const std::vector<s_attr_t>& candidates) {
+        return std::any_of(candidates.begin(), candidates.end(), [&](const s_attr_t& candidate) {
+            return attr.name == candidate.name && attr.type == candidate.type;
+        });
+    };
+
+    for (const s_attr_t& output : outputs){
+        if (!has_match(output, fragment_inputs)){
+            fprintf(stderr, "%s, %s: vertex shader output '%s' does not exist in fragment shader inputs\n", inputs[vsIndex].filename.c_str(), inputs[fsIndex].filename.c_str(), output.name.c_str());
+            return false;
+        }
+    }
+
+    for (const s_attr_t& input : fragment_inputs){
+        if (!has_match(input, outputs)){
+            fprintf(stderr, "%s, %s: fragment shader input '%s' does not exist in vertex shader outputs\n", inputs[vsIndex].filename.c_str(), inputs[fsIndex].filename.c_str(), input.name.c_str());
+            return false;
+        }
+    }
+
+    // the stages pair up by location (GLSL layouts, HLSL TEXCOORD<n>, MSL user(locn)),
+    // which each stage assigns in declaration order: the same varyings in another order
+    // pass the checks above and then mix up at link (GL) or silently (others)
+    for (const s_attr_t& output : outputs){
+        for (const s_attr_t& input : fragment_inputs){
+            if (output.name == input.name && output.location != input.location){
+                fprintf(stderr, "%s, %s: vertex shader output '%s' is at location %u but the fragment shader input at %u: declare the varyings in the same order in both stages\n", inputs[vsIndex].filename.c_str(), inputs[fsIndex].filename.c_str(), output.name.c_str(), output.location, input.location);
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+// glslang numbers the varyings of each stage in declaration order, so a fragment shader
+// declaring its inputs in another order than the vertex shader its outputs (a library
+// shader's own .frag against includes/surface_vs.glsl) would read the wrong ones wherever
+// the locations link them (GL 4.1, HLSL, MSL, SPIR-V). Each fragment input takes the
+// location of the vertex output of the same name: stages match by name, in any order.
+static bool match_fragment_input_locations(std::vector<uint32_t>& fragment, const std::vector<uint32_t>& vertex, const input_t& input) {
+    std::unordered_map<std::string, uint32_t> output_locations;
+    {
+        spirv_cross::Parser parser(vertex);
+        parser.parse();
+        spirv_cross::Compiler compiler(std::move(parser.get_parsed_ir()));
+        for (const spirv_cross::Resource& output : compiler.get_shader_resources().stage_outputs) {
+            if (compiler.has_decoration(output.id, spv::DecorationLocation))
+                output_locations[compiler.get_name(output.id)] = compiler.get_decoration(output.id, spv::DecorationLocation);
+        }
+    }
+    std::unordered_map<uint32_t, uint32_t> locations; // fragment input id -> location
+    {
+        spirv_cross::Parser parser(fragment);
+        parser.parse();
+        spirv_cross::Compiler compiler(std::move(parser.get_parsed_ir()));
+        for (const spirv_cross::Resource& in : compiler.get_shader_resources().stage_inputs) {
+            auto it = output_locations.find(compiler.get_name(in.id));
+            if (it != output_locations.end())
+                locations[in.id] = it->second;
+        }
+    }
+    if (locations.empty())
+        return true;
+
+    // OpDecorate [op, target-id, decoration, literal] (see patch_spirv_bind_slots)
+    const uint32_t SpvOpDecorate = 71;
+    const uint32_t SpvDecorationLocation = 30;
+    size_t offset = 5;
+    while (offset < fragment.size()) {
+        const uint32_t opcode = fragment[offset] & 0xffff;
+        const uint32_t word_count = fragment[offset] >> 16;
+        if (word_count == 0 || offset + word_count > fragment.size()) {
+            fprintf(stderr, "%s: malformed SPIRV binary\n", input.filename.c_str());
+            return false;
+        }
+        if (opcode == SpvOpDecorate && word_count == 4 && fragment[offset + 2] == SpvDecorationLocation) {
+            auto it = locations.find(fragment[offset + 1]);
+            if (it != locations.end())
+                fragment[offset + 3] = it->second;
+        }
+        offset += word_count;
+    }
+    return true;
+}
+
+bool shadercompiler::compile_to_lang(std::vector<spirvcross_t>& spirvcrossvec, const std::vector<spirv_t>& spirvvec_in, const std::vector<input_t>& inputs, const args_t& args){
+    // the fragment stage's varyings located as the vertex stage's (match_fragment_input_locations)
+    std::vector<spirv_t> spirvvec = spirvvec_in;
+    {
+        int vs = -1, fs = -1;
+        for (int s = 0; s < (int)inputs.size(); s++){
+            if (inputs[s].stage_type == stage_type_t::STAGE_VERTEX) vs = s;
+            if (inputs[s].stage_type == stage_type_t::STAGE_FRAGMENT) fs = s;
+        }
+        if (vs >= 0 && fs >= 0 && !match_fragment_input_locations(spirvvec[fs].bytecode, spirvvec[vs].bytecode, inputs[fs]))
+            return false;
+    }
+
+    for (int i = 0; i < inputs.size(); i++){
+        // SPIRV (Vulkan): no cross-compilation, the SPIRV bytecode itself is the
+        // output; only the set/binding decorations are patched to the sokol_gfx.h
+        // Vulkan binding convention
+        if (args.lang == LANG_SPIRV) {
+            spirvcrossvec[i].bytecode = spirvvec[i].bytecode;
+            if (!patch_spirv_bind_slots(spirvcrossvec[i].bytecode, inputs[i].stage_type, args.lang, inputs[i]))
+                return false;
+
+            {
+                // validate against the same rules of the other languages
+                spirv_cross::Parser spirv_parser(spirvvec[i].bytecode);
+                spirv_parser.parse();
+                spirv_cross::Compiler validate_compiler(std::move(spirv_parser.get_parsed_ir()));
+                spirv_cross::ShaderResources res = validate_compiler.get_shader_resources();
+                if (!validate_uniform_blocks_and_separate_image_samplers(&validate_compiler, res, inputs[i]))
+                    return false;
+            }
+
+            if (!parse_reflection(spirvvec[i].bytecode, inputs[i].stage_type, spirvcrossvec[i], args.lang))
+                return false;
+
+            continue;
+        }
+
+        spirv_cross::Parser spirv_parser(spirvvec[i].bytecode);
+	    spirv_parser.parse();
+
+        std::unique_ptr<spirv_cross::CompilerGLSL> compiler;
+        // Use spirv-cross to convert to other types of shader
+        if (args.lang == LANG_GLSL) {
+            compiler.reset(new spirv_cross::CompilerGLSL(std::move(spirv_parser.get_parsed_ir())));
+#ifdef SHADERCOMPILER_MSL
+        } else if (args.lang == LANG_MSL) {
+            compiler.reset(new spirv_cross::CompilerMSL(std::move(spirv_parser.get_parsed_ir())));
+#endif
+#ifdef SHADERCOMPILER_HLSL
+        } else if (args.lang == LANG_HLSL) {
+            compiler.reset(new spirv_cross::CompilerHLSL(std::move(spirv_parser.get_parsed_ir())));
+#endif
+        } else {
+            fprintf(stderr, "Language not implemented");
+            return false;
+        }
+
+        spirv_cross::CompilerGLSL::Options opts = compiler->get_common_options();
+        
+        opts.flatten_multidimensional_arrays = true;
+        opts.vertex.flip_vert_y = false;
+
+        if (args.lang == LANG_GLSL) {
+
+            opts.vulkan_semantics = false;
+            opts.emit_line_directives = false;
+            opts.vertex.fixup_clipspace = false;
+            opts.enable_420pack_extension = false;
+            opts.emit_uniform_buffer_as_plain_uniforms = true;
+            opts.es = args.es;
+            opts.version = args.version;
+
+#ifdef SHADERCOMPILER_HLSL
+        } else if (args.lang == LANG_HLSL) {
+
+            opts.emit_line_directives = true;
+            opts.vertex.fixup_clipspace = true;
+
+            spirv_cross::CompilerHLSL* hlsl = (spirv_cross::CompilerHLSL*)compiler.get();
+            spirv_cross::CompilerHLSL::Options hlsl_opts = hlsl->get_hlsl_options();
+            hlsl_opts.shader_model = args.version;
+            hlsl_opts.point_size_compat = true;
+            hlsl_opts.point_coord_compat = true;
+
+            hlsl->set_hlsl_options(hlsl_opts);
+#endif
+
+#ifdef SHADERCOMPILER_MSL
+        } else if (args.lang == LANG_MSL) {
+
+            opts.emit_line_directives = true;
+            opts.vertex.fixup_clipspace = true;
+
+            spirv_cross::CompilerMSL* msl = (spirv_cross::CompilerMSL*)compiler.get();
+            spirv_cross::CompilerMSL::Options msl_opts = msl->get_msl_options();
+            if (args.platform == SHADER_MACOS){
+                msl_opts.platform = spirv_cross::CompilerMSL::Options::macOS;
+            }else if (args.platform == SHADER_IOS){
+                msl_opts.platform = spirv_cross::CompilerMSL::Options::iOS;
+            }
+            msl_opts.enable_decoration_binding = true;
+            msl_opts.msl_version = args.version;
+
+            msl->set_msl_options(msl_opts);
+#endif
+
+        }
+
+        compiler->set_common_options(opts);
+
+        // Vertex attribute remap for HLSL
+#ifdef SHADERCOMPILER_HLSL
+        if (args.lang == LANG_HLSL) {
+            spirv_cross::CompilerHLSL* hlsl_compiler = (spirv_cross::CompilerHLSL*)compiler.get();
+            for (int i = 0; i < VERTEX_ATTRIB_COUNT; i++) {
+                spirv_cross::HLSLVertexAttributeRemap remap = { (uint32_t)i, k_attrib_names[i] };
+                hlsl_compiler->add_vertex_attribute_remap(remap);
+            }
+        }
+#endif
+
+        fix_bind_slots(compiler.get(), inputs[i].stage_type, args.lang);
+
+        spirv_cross::ShaderResources res = compiler->get_shader_resources();
+        if (!validate_uniform_blocks_and_separate_image_samplers(compiler.get(), res, inputs[i]))
+            return false;
+
+        // GL/GLES try to flatten UBs if attributes are same type to use only one glUniform4fv call
+        if (args.lang == LANG_GLSL) {
+            flatten_uniform_blocks(compiler.get());
+            to_combined_image_samplers(compiler.get());
+        }
+        
+        spirvcrossvec[i].source = compiler->compile();
+
+        if (!parse_reflection(spirvvec[i].bytecode, inputs[i].stage_type, spirvcrossvec[i], args.lang))
+            return false;
+    }
+
+    if (!validate_inputs_and_outputs(spirvcrossvec, inputs))
+        return false;
+
+    return true;
+}

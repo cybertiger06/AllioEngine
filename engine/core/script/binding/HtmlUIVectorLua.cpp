@@ -1,0 +1,70 @@
+// (c) Eduardo Doria and contributors
+// SPDX-License-Identifier: MIT
+
+// The <lottie> control of UIElement (p1-vector). Re-opens the UIElement class that
+// registerHtmlUIClasses (p1-lua) binds and adds the Lottie methods; LuaBridge allows adding
+// members to a registered class, and the dead-handle guard p1-lua puts on UIElement's
+// metatable covers them too. Like every UIElement member, a dead handle raises
+// kHtmlUIDeadElementMessage (checked again here, before any C++ object with a destructor is
+// alive: Lua is compiled as C and luaL_error longjmps); another element logs an error and does
+// nothing.
+
+#include "LuaBinding.h"
+
+#include "lua.hpp"
+
+#include "LuaBridge.h"
+
+#include "object/ui/UIElement.h"
+#include "object/ui/HtmlUIScriptInternal.h"
+
+// the HTML UI module (docs/specs/S34-player-size.md R1): the Lua API description reads this condition
+#if JASPERENGINE_HTMLUI
+
+using namespace jasperengine;
+
+namespace {
+
+    void checkElement(const UIElement* self, lua_State* L){
+        if (!self || !self->isValid())
+            luaL_error(L, "%s", kHtmlUIDeadElementMessage);
+    }
+
+}
+
+void LuaBinding::registerHtmlUIVectorClasses(lua_State *L){
+#ifndef DISABLE_LUA_BINDINGS
+
+    luabridge::getGlobalNamespace(L)
+        .beginClass<UIElement>("UIElement")
+        .addFunction("play", [](UIElement* self, lua_State* L) { checkElement(self, L); self->play(); })
+        .addFunction("pause", [](UIElement* self, lua_State* L) { checkElement(self, L); self->pause(); })
+        .addFunction("stop", [](UIElement* self, lua_State* L) { checkElement(self, L); self->stop(); })
+        // <particle-system> and text-effect (ui-scaling-text)
+        .addFunction("clear", [](UIElement* self, lua_State* L) { checkElement(self, L); self->clear(); })
+        // nil before the prefab is made (document scripts, onLoad, edit mode) or when its src failed
+        .addFunction("getParticleSystem", [](UIElement* self, lua_State* L) -> luabridge::LuaRef {
+            checkElement(self, L);
+            if (!self->hasParticleSystem())
+                return luabridge::LuaRef(L);
+            return luabridge::LuaRef(L, self->getParticleSystem());
+        })
+        .addFunction("restartTextEffect", [](UIElement* self, lua_State* L) { checkElement(self, L); self->restartTextEffect(); })
+        .addFunction("seek", [](UIElement* self, float seconds, lua_State* L) { checkElement(self, L); self->seek(seconds); })
+        .addFunction("setFrame", [](UIElement* self, float frame, lua_State* L) { checkElement(self, L); self->setFrame(frame); })
+        .addFunction("setSpeed", [](UIElement* self, float speed, lua_State* L) { checkElement(self, L); self->setSpeed(speed); })
+        .addFunction("setDirection", [](UIElement* self, int direction, lua_State* L) { checkElement(self, L); self->setDirection(direction); })
+        .addFunction("setLoop", [](UIElement* self, bool loop, lua_State* L) { checkElement(self, L); self->setLoop(loop); })
+        .addFunction("setLoopCount", [](UIElement* self, int count, lua_State* L) { checkElement(self, L); self->setLoopCount(count); })
+        .addFunction("setSegment", [](UIElement* self, float startFrame, float endFrame, lua_State* L) { checkElement(self, L); self->setSegment(startFrame, endFrame); })
+        .addFunction("setMarker", [](UIElement* self, const char* marker, lua_State* L) { checkElement(self, L); self->setMarker(marker ? marker : ""); })
+        .addFunction("isPlaying", [](UIElement* self, lua_State* L) -> bool { checkElement(self, L); return self->isPlaying(); })
+        .addFunction("getCurrentFrame", [](UIElement* self, lua_State* L) -> float { checkElement(self, L); return self->getCurrentFrame(); })
+        .addFunction("getTotalFrames", [](UIElement* self, lua_State* L) -> float { checkElement(self, L); return self->getTotalFrames(); })
+        .addFunction("getDuration", [](UIElement* self, lua_State* L) -> float { checkElement(self, L); return self->getDuration(); })
+        .endClass();
+
+#endif //DISABLE_LUA_BINDINGS
+}
+
+#endif // JASPERENGINE_HTMLUI

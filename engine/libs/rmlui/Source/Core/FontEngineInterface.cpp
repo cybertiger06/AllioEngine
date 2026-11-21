@@ -1,0 +1,100 @@
+#include "../../Include/RmlUi/Core/FontEngineInterface.h"
+#include "../../Include/RmlUi/Core/StringUtilities.h"
+#include "TextUnicode.h"
+
+namespace Rml {
+
+FontEngineInterface::FontEngineInterface() {}
+
+FontEngineInterface::~FontEngineInterface() {}
+
+void FontEngineInterface::Initialize() {}
+
+void FontEngineInterface::Shutdown() {}
+
+bool FontEngineInterface::LoadFontFace(const String& /*file_path*/, int /*face_index*/, bool /*fallback_face*/, Style::FontWeight /*weight*/)
+{
+	return false;
+}
+
+bool FontEngineInterface::LoadFontFace(const String& /*file_path*/, int /*face_index*/, const String& /*family*/, Style::FontStyle /*style*/,
+	Style::FontWeight /*weight*/, bool /*fallback_face*/)
+{
+	return false;
+}
+
+bool FontEngineInterface::LoadFontFace(Span<const byte> /*data*/, int /*face_index*/, const String& /*family*/, Style::FontStyle /*style*/,
+	Style::FontWeight /*weight*/, bool /*fallback_face*/)
+{
+	return false;
+}
+
+FontFaceHandle FontEngineInterface::GetFontFaceHandle(const String& /*family*/, Style::FontStyle /*style*/, Style::FontWeight /*weight*/,
+	int /*size*/)
+{
+	return 0;
+}
+
+FontEffectsHandle FontEngineInterface::PrepareFontEffects(FontFaceHandle /*handle*/, const FontEffectList& /*font_effects*/)
+{
+	return 0;
+}
+
+const FontMetrics& FontEngineInterface::GetFontMetrics(FontFaceHandle /*handle*/)
+{
+	static const FontMetrics metrics = {};
+	return metrics;
+}
+
+int FontEngineInterface::GetStringWidth(FontFaceHandle /*handle*/, StringView /*string*/, const TextShapingContext& /*text_shaping_context*/,
+	Character /*prior_character*/)
+{
+	return 0;
+}
+
+int FontEngineInterface::GenerateString(RenderManager& /*render_manager*/, FontFaceHandle /*face_handle*/, FontEffectsHandle /*font_effects_handle*/,
+	StringView /*string*/, Vector2f /*position*/, ColourbPremultiplied /*colour*/, float /*opacity*/,
+	const TextShapingContext& /*text_shaping_context*/, TexturedMeshList& /*mesh_list*/)
+{
+	return 0;
+}
+
+void FontEngineInterface::GetBidiRuns(StringView string, const TextShapingContext& text_shaping_context, Vector<TextBidiRun>& runs)
+{
+	const int direction = TextUnicode::FirstStrongDirection(string);
+	const bool rtl = (direction == 0 ? text_shaping_context.text_direction == Style::Direction::Rtl : direction < 0);
+	runs.assign(1, TextBidiRun{0, (int)string.size(), rtl});
+}
+
+int FontEngineInterface::GetVersion(FontFaceHandle /*handle*/)
+{
+	return 0;
+}
+
+void FontEngineInterface::ReleaseFontResources() {}
+
+float FontEngineInterface::GetBaseRasterScale(RenderManager& /*render_manager*/)
+{
+	return 0.f;
+}
+
+bool FontEngineInterface::PrepareGlyphs(FontFaceHandle /*handle*/, StringView /*string*/, const TextShapingContext& /*text_shaping_context*/)
+{
+	return true;
+}
+
+bool FontEngineInterface::PrepareDistanceGlyphs(FontFaceHandle /*handle*/, StringView /*string*/, const TextShapingContext& /*text_shaping_context*/)
+{
+	return false;
+}
+
+bool FontEngineInterface::SupportsGpuTextShadow(FontFaceHandle /*handle*/, float /*blur_radius*/)
+{
+	return false;
+}
+
+void FontEngineInterface::ReportTextEffectFallback(RenderManager& /*render_manager*/) {}
+
+void FontEngineInterface::ReportTextRegeneration(RenderManager& /*render_manager*/) {}
+
+} // namespace Rml
