@@ -1555,7 +1555,7 @@ void writeFileTool(const CallPtr& call) {
             text += " LUA SYNTAX ERROR line " + std::to_string(syntax.line) + ": " + syntax.message;
         }
     } else if (Util::isCSharpFile(rel)) {
-        text += " Play the scene to compile the C# project.";
+        text += " Run check_script to see C# compiler diagnostics.";
     } else if (Util::isScriptFile(rel)) {
         text += " C++: run compile_scripts to check it.";
     } else if (Util::isVertexAnimationFile(rel)) {

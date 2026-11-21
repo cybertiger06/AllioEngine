@@ -6,6 +6,7 @@
 // export left, and the engine workspaces' IDE output, never copied and never removed.
 
 #include "export/ExportFiles.h"
+#include "export/CSharpSources.h"
 
 #include "support/TestTempDir.h"
 
@@ -204,4 +205,28 @@ TEST(ExportFiles, ExportFolderFinderFindsFilesOfEarlierExports) {
     EXPECT_TRUE(finder.contains(fs::path("Builds/Web/assets/tree.png")));
     EXPECT_FALSE(finder.contains(dir / "art/tree.png"));
     EXPECT_FALSE(finder.contains(dir.path().parent_path() / "elsewhere.png"));
+}
+
+TEST(ExportFiles, ReexportRetiresOnlyTheUnchangedCopiesOfRemovedCSharpSources) {
+    TestTempDir temp("export-csharp");
+    const auto project = temp / "input";
+    const auto output = temp / "output";
+    const auto exported = output / "project/csharp/src";
+    fs::create_directory(output);
+    TestTempDir::write(project / "Scripts/Old.cs", "original");
+    TestTempDir::write(project / "Script.cs", "before local edit");
+    std::string error;
+    ASSERT_TRUE(exportfiles::updateCSharpSources(output, project, {"Scripts/Old.cs", "Script.cs"}, "csproj", error)) << error;
+    TestTempDir::write(exported / "Untracked.cs", "local");
+    TestTempDir::write(exported / "Script.cs", "local edit");
+    TestTempDir::write(project / "Scripts/New.cs", "new script");
+    ASSERT_TRUE(exportfiles::updateCSharpSources(output, project, {"Scripts/New.cs"}, "new csproj", error)) << error;
+    EXPECT_FALSE(fs::exists(exported / "Scripts/Old.cs"));
+    EXPECT_EQ(TestTempDir::read(exported / "Script.cs"), "local edit");
+    EXPECT_EQ(TestTempDir::read(exported / "Untracked.cs"), "local");
+    EXPECT_EQ(TestTempDir::read(exported / "Scripts/New.cs"), "new script");
+    ASSERT_TRUE(exportfiles::updateCSharpSources(output, project, {}, "empty csproj", error)) << error;
+    EXPECT_FALSE(fs::exists(exported / "Scripts/New.cs"));
+    EXPECT_FALSE(fs::exists(exported.parent_path() / "Allio.Game.csproj"));
+    EXPECT_EQ(TestTempDir::read(exported / "Script.cs"), "local edit");
 }

@@ -1,4 +1,4 @@
-# JasperEngine: operating manual for engine contributors
+# AllioEngine contributor guide
 
 For engine contributors. Inside a game project (a directory with `project.yaml`), follow that
 project's AGENTS.md instead. The test projects under `tools` are not game projects for this rule.
@@ -6,6 +6,8 @@ project's AGENTS.md instead. The test projects under `tools` are not game projec
 ## Map
 
 - `docs/testing.md`: every suite, where a test goes, naming, sanitizers.
+- `docs/mcp/guide/csharp-scripting.md` describes gameplay scripting for new AllioEngine projects.
+- `engine/managed/Allio.Managed/` contains the C# gameplay API. `engine/tests/managed/` exercises the native host and script reload.
 - `docs/mcp/conventions.md`: the MCP tool rules.
 - `docs/mcp/DESIGN.md`: how the MCP server works.
 - `docs/specs/README.md`: global decisions and the do-not-copy list.
@@ -38,7 +40,7 @@ Before editing these paths, read the rule file:
 - Every persistent write goes through `engine/core/io/AtomicFile.h` or a helper built on it
   (`docs/data-safety.md`); a raw write needs a reasoned entry in `tools/raw_writes_allowlist.txt`.
 - A user-facing feature gets editor UI with Unity-like names and undo.
-- A runtime feature gets a Lua API.
+- Expose new gameplay APIs in C#. Preserve the existing Lua bindings used by imported projects.
 - A user-facing feature gets MCP tools so agents can drive and check it.
 - A patch to vendored code follows that library's patch ledger beside it.
 

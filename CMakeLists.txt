@@ -1149,6 +1149,7 @@ set(JASPERENGINE_EDITOR_SOURCES
     ${EDITOR_DIR}/util/UIUtils.cpp
     ${EDITOR_DIR}/util/UiItemLocator.cpp
     ${EDITOR_DIR}/util/CSharpBuild.cpp
+    ${EDITOR_DIR}/export/CSharpSources.cpp
     ${EDITOR_DIR}/util/CommandRunner.cpp
     ${EDITOR_DIR}/util/TextEncoding.cpp
     ${EDITOR_DIR}/util/SystemFonts.cpp
@@ -2157,6 +2158,7 @@ else()
             PATTERN ".git" EXCLUDE
             # test sources, fixtures and golden images (engine/tests only, not a vendored lib's tests)
             REGEX "/engine/tests$" EXCLUDE
+            REGEX "/engine/managed/(.*/)?(bin|obj)$" EXCLUDE
             # RmlUi's own test suites: built standalone by tools/htmlui/run-rmlui-tests.sh, never by a project
             REGEX "/engine/libs/rmlui/Tests$" EXCLUDE
             # the repository's presets (build directories, tests, sanitizers): not a project's

@@ -2,6 +2,10 @@
 build
 build-rel
 build-release
+/engine/managed/**/bin/
+/engine/managed/**/obj/
+/engine/tests/managed/bin/
+/engine/tests/managed/obj/
 # the editor install and the packages of tools/ci/{windows,macos,package-linux}.sh
 /instdir/
 /dist/

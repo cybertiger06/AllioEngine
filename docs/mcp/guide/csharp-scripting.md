@@ -1,6 +1,6 @@
 # C# gameplay scripts
 
-Use **Assets > Create > C# Script** to create a file. Drag it onto a GameObject, or use **Inspector > Add Script** to create and attach it in one step. From MCP, call:
+Use **Assets > Create > C# Script** to create a file. Drag it onto a GameObject, or use **Inspector > Add Script** to create and attach it in one step. The same operation is available through MCP.
 
 ```json
 {"name":"create_script","arguments":{"kind":"csharp","name":"Spinner","directory":"scripts","entity":"Cube"}}
@@ -21,6 +21,10 @@ public sealed class Spinner : Behaviour
     }
 }
 ```
+
+Use `check_script` with `{"path":"scripts/Spinner.cs"}` to compile all project scripts in the background using the .NET 10 SDK. For a proposed edit, pass the same path and a `code` string. To check an additional source, pass `code` and `"language":"csharp"`. The temporary compilation keeps the project's files and active Play session intact.
+
+The result includes `ok`, `errors` and `warnings`. Each Roslyn finding includes its code, message, file path, line and column (`col`). Pass `"wait":false` to return immediately. If a check is still running after the default 15-second wait, it also returns a `job_id`. Poll `get_job` with that id until the status is `succeeded`, `failed` or `cancelled`. On success, read `result.ok` and `result.errors` to distinguish clean code from compiler diagnostics.
 
 **Play** compiles the project with the .NET 10 SDK. The Console reports compilation and script errors. Stop and Play again after editing source. Classes can also override `Awake()`, `OnEnable()`, `Start()`, `OnDisable()` and `OnDestroy()`. Local `Position` uses `System.Numerics.Vector3`. Check held keys with `IsKeyDown(Key.Left)` and press events with `IsKeyPressed(Key.Space)`.
 

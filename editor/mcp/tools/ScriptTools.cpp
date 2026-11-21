@@ -32,6 +32,9 @@
 #include "Project.h"
 #include "asset/AssetTypes.h"
 #include "util/ExternalCodeEditor.h"
+#include "util/CSharpBuild.h"
+#include "util/CommandRunner.h"
+#include "htmlui/compat/UrlResolver.h"
 #include "command/CommandHandle.h"
 #include "command/CommandHistory.h"
 #include "command/CommandNames.h"
@@ -77,6 +80,7 @@
 #include <fstream>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <regex>
 #include <set>
 #include <sstream>
@@ -1182,24 +1186,158 @@ Json luaLifecycleWarnings(const std::string& code, const std::vector<ScriptPrope
     return warnings;
 }
 
+// Roslyn reports percent-encoded file URIs on all platforms, including Windows drive and UNC paths.
+std::string csharpFindingPath(std::string uri, const fs::path& root, const fs::path& preview, const std::string& name) {
+    if (uri.starts_with("file:///")) {
+        uri.erase(0, 7);
+#ifdef _WIN32
+        if (uri.size() > 2 && uri[2] == ':') uri.erase(0, 1);
+#endif
+    } else if (uri.starts_with("file://")) {
+        uri = "//" + uri.substr(7);
+    }
+    const fs::path source = FileUtils::pathFromUtf8(htmlui::compat::UrlResolver::percentDecode(uri)).lexically_normal();
+    if (source == preview) return name;
+    const fs::path relative = source.lexically_relative(root);
+    return FileUtils::pathToGenericUtf8(!relative.empty() && *relative.begin() != ".." ? relative : source);
+}
+
+void checkCSharpTool(const CallPtr& call, const fs::path& file, const std::string& name) {
+    Project* project = call->ctx().project();
+    if (const auto escape = McpRefs::internalFoldersEscape(project); !escape.empty()) {
+        call->fail(escape);
+        return;
+    }
+    const auto root = fs::absolute(project->getProjectPath()).lexically_normal();
+    const auto cache = fs::absolute(project->getProjectInternalPath());
+    const auto api = FileUtils::getEngineDir() / "managed" / "Allio.Managed" / "Allio.Managed.csproj";
+    const auto& args = call->args();
+    std::optional<std::string> code;
+    if (args.contains("code")) code = args.at("code").get<std::string>();
+    auto runner = std::make_shared<CommandRunner>();
+    JobPtr job = call->ctx().jobs().create("check_script", "Check C# with Roslyn");
+    job->setCancelHandler([runner] { runner->cancel(); });
+    jobs::SubmitOptions options;
+    options.name = "check-csharp";
+    static auto* checks = new jobs::JobChannel("csharp-check", 1);
+    checks->submit([job, runner, root, cache, api, file, name, code = std::move(code)] {
+        try {
+            std::string error;
+            auto files = csharp::sources(root, error);
+            if (!error.empty()) { job->fail(error); return; }
+            for (auto& path : files) path = (root / path).lexically_normal();
+            const auto checkDir = cache / ("check-csharp-" + job->id() + "-" +
+                std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+            std::error_code ec;
+            fs::create_directories(cache, ec);
+            if (ec || !fs::create_directory(checkDir, ec)) { job->fail("Cannot create an isolated C# build folder."); return; }
+            struct Scratch {
+                fs::path dir;
+                ~Scratch() { std::error_code ignored; fs::remove_all(dir, ignored); }
+            } scratch{checkDir};
+            const auto preview = checkDir / "Preview.cs";
+            if (!file.empty() && std::erase(files, file.lexically_normal()) == 0 && fs::exists(file, ec)) {
+                // A different spelling on a case-insensitive volume still replaces that source.
+                std::erase_if(files, [&](const fs::path& path) {
+                    std::error_code sameError;
+                    return fs::equivalent(path, file, sameError);
+                });
+            }
+            if (code) {
+                if (FileUtils::writeFile(preview, *code) == FileUtils::WriteResult::Failed) {
+                    job->fail("Cannot stage the C# source for checking."); return;
+                }
+                files.push_back(preview);
+            } else {
+                files.push_back(file);
+            }
+            if (!csharp::writeProject(checkDir, {}, files, api, true)) {
+                job->fail("Cannot write the temporary C# project."); return;
+            }
+            if (job->cancelRequested()) { job->markCancelled(); return; }
+            std::string log;
+            const bool ok = runner->run({"dotnet", "build", "Allio.Game.csproj", "--nologo", "-v:quiet",
+                "--artifacts-path", FileUtils::pathToUtf8(checkDir / "artifacts"),
+                "-p:ImportDirectoryBuildProps=false", "-p:ImportDirectoryBuildTargets=false",
+                "-p:ImportDirectoryPackagesProps=false", "-p:NuGetAudit=false", "-p:RunAnalyzers=false"},
+                checkDir, [&](const std::string& line) {
+                    job->log(line);
+                    if (!line.empty() && log.size() < 8192) log += line + "\n";
+                });
+            if (job->cancelRequested()) { job->markCancelled(); return; }
+            std::string sarif;
+            if (!ProjectChecks::readFile(checkDir / "check.sarif", sarif)) {
+                job->fail("Roslyn did not produce a diagnostic report. Check the .NET 10 SDK and build output.\n" + log);
+                return;
+            }
+            const Json report = Json::parse(sarif);
+            Json errors = Json::array(), warnings = Json::array(), findings = Json::array();
+            for (const auto& run : report.at("runs")) {
+                for (const auto& item : run.at("results")) {
+                    const auto severity = item.value("level", std::string("warning"));
+                    if (severity != "error" && severity != "warning") continue;
+                    ProjectChecks::Finding finding;
+                    finding.tool = "csharp";
+                    finding.path = name;
+                    finding.severity = severity;
+                    finding.code = item.value("ruleId", std::string{});
+                    finding.message = item.at("message").at("text").get<std::string>();
+                    if (item.contains("locations") && !item["locations"].empty()) {
+                        const auto& location = item["locations"][0].at("physicalLocation");
+                        const auto uri = location.at("artifactLocation").at("uri").get<std::string>();
+                        finding.path = csharpFindingPath(uri, root, preview, name);
+                        if (location.contains("region")) {
+                            finding.line = location["region"].value("startLine", 0);
+                            finding.col = location["region"].value("startColumn", 0);
+                        }
+                    }
+                    const auto diagnostic = ProjectChecks::toJson(finding);
+                    (severity == "error" ? errors : warnings).push_back(diagnostic);
+                    findings.push_back(diagnostic);
+                }
+            }
+            if (!ok && errors.empty()) { job->fail("The .NET build failed.\n" + log); return; }
+            std::string summary = "C# check: " + std::to_string(errors.size()) + " error(s), " +
+                                  std::to_string(warnings.size()) + " warning(s).";
+            if (!errors.empty()) {
+                const auto& first = errors.front();
+                summary += " " + first.at("path").get<std::string>() + ":" + std::to_string(first.at("line").get<int>()) +
+                           ": " + first.at("code").get<std::string>() + " " + first.at("message").get<std::string>();
+            }
+            job->succeed(summary, {{"path", name}, {"language", "csharp"}, {"ok", ok}, {"errors", errors},
+                                   {"warnings", warnings}, {"findings", findings}});
+        } catch (const std::exception& ex) {
+            job->fail(std::string("Could not check the C# sources: ") + ex.what());
+        }
+    }, options);
+    replyWhenJobDone(call, job, args.value("wait", true), args.value("timeout_seconds", 15.0), [](const McpJob& finished) {
+        return finished.status() == JobStatus::Succeeded ? ToolResult::success(finished.message(), finished.result())
+                                                         : ToolResult::error(finished.message(), finished.result());
+    });
+}
+
 void checkScriptTool(const CallPtr& call) {
     const Json& args = call->args();
     Project* project = call->ctx().project();
     std::string code, name, language = args.value("language", "");
     fs::path file;
     if (args.contains("path") && args["path"].is_string()) {
+        const std::string requested = args["path"].get<std::string>();
+        const bool csharpPreview = args.contains("code") && args["code"].is_string() &&
+            (language == "csharp" || (language.empty() && Util::isCSharpFile(requested)));
         std::string error;
-        if (!McpRefs::resolveProjectPath(project, args["path"].get<std::string>(), file, error, true)) {
+        if (!McpRefs::resolveProjectPath(project, requested, file, error, !csharpPreview)) {
             call->fail(error);
             return;
         }
-        if (!ProjectChecks::readFile(file, code)) {
+        if (!csharpPreview && !ProjectChecks::readFile(file, code)) {
             call->fail("Can't read " + args["path"].get<std::string>() + ".");
             return;
         }
         name = projectRelative(project, file);
         if (language.empty()) {
-            if (Util::isLuaFile(name)) language = "lua";
+            if (Util::isCSharpFile(name)) language = "csharp";
+            else if (Util::isLuaFile(name)) language = "lua";
             else if (Util::isHeaderFile(name)) language = "cpp_header";
             else if (Util::isSourceFile(name)) language = "cpp_source";
         }
@@ -1211,6 +1349,10 @@ void checkScriptTool(const CallPtr& call) {
         return;
     }
 
+    if (language == "csharp") {
+        checkCSharpTool(call, file, name);
+        return;
+    }
     Json data = {{"path", name}, {"language", language}};
     if (language == "lua") {
         // Syntax, then the properties the Inspector will show: like the Inspector and the CLI, this
@@ -1268,7 +1410,7 @@ void checkScriptTool(const CallPtr& call) {
         call->ok("C++ sources are checked by compiling: call compile_scripts.", data);
         return;
     }
-    call->fail("language must be lua, cpp_header or cpp_source (or pass a path with one of those extensions).");
+    call->fail("language must be csharp, lua, cpp_header or cpp_source (or pass a path with one of those extensions).");
 }
 
 // ------------------------------------------------------------------ sync_files
@@ -1723,12 +1865,15 @@ void registerScriptTools(McpRegistry& registry) {
         tool.name = "check_script";
         tool.title = "Check Script";
         tool.description =
-            "Check a script without playing: Lua syntax (not run; ok false + error line), properties, lifecycle "
-            "warnings; C++ header: class, kind, DPROPERTY fields (code: compile_scripts).";
+            "Check C# with Roslyn against the project's scripts. Use path to select a file and code to preview a replacement "
+            "or an additional source. Returns ok, errors and warnings with paths, codes and positions. "
+            "Also checks Lua syntax and fields or C++ header declarations.";
         tool.inputSchema = object({
             {"path", assetPath("")},
             {"code", string("")},
-            {"language", stringEnum("Default: from the extension.", {"lua", "cpp_header", "cpp_source"})}
+            {"language", stringEnum("Default: from the extension.", {"csharp", "lua", "cpp_header", "cpp_source"})},
+            {"wait", withDefault(boolean("Return a C# job immediately when false."), true)},
+            {"timeout_seconds", withDefault(number("Seconds to wait for a C# job."), 15)}
         });
         tool.annotations.readOnly = true;
         tool.annotations.idempotent = true;

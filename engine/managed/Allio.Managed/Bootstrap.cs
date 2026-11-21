@@ -61,10 +61,10 @@ internal static unsafe class Bootstrap
     }
 
     private static string Utf8(nint p) => Marshal.PtrToStringUTF8(p) ?? "";
-    internal static void WriteLog(bool error, string message)
+    internal static void WriteLog(bool error, string message, bool scriptCallback = false)
     {
         nint text = Marshal.StringToCoTaskMemUTF8(message);
-        try { Native.Log(error ? 1 : 0, text); }
+        try { Native.Log(scriptCallback ? 2 : error ? 1 : 0, text); }
         finally { Marshal.FreeCoTaskMem(text); }
     }
 
@@ -126,7 +126,7 @@ internal static unsafe class Bootstrap
                 case 6: obj.OnClick(Utf8(text)); break;
             }
         }
-        catch (Exception e) { WriteLog(true, e.ToString()); }
+        catch (Exception e) { WriteLog(true, e.ToString(), scriptCallback: true); }
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]

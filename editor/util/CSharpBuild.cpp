@@ -53,8 +53,8 @@ static std::string itemPath(const fs::path& path) {
     return value;
 }
 
-bool writeProject(const fs::path& directory, const fs::path& sourceRoot,
-                  const std::vector<fs::path>& files, const fs::path& apiProject) {
+std::string projectContents(const fs::path& sourceRoot, const std::vector<fs::path>& files,
+                            const fs::path& apiProject, bool recordDiagnostics) {
     std::ostringstream xml;
     xml << R"(<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -63,7 +63,9 @@ bool writeProject(const fs::path& directory, const fs::path& sourceRoot,
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableDefaultItems>false</EnableDefaultItems>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
-  </PropertyGroup>
+)";
+    if (recordDiagnostics) xml << "    <ErrorLog>$(MSBuildProjectDirectory)/check.sarif,version=2.1</ErrorLog>\n";
+    xml << R"(  </PropertyGroup>
   <ItemGroup>
 )";
     xml << "    <ProjectReference Include=\"" << itemPath(apiProject) << "\" />\n";
@@ -76,7 +78,14 @@ bool writeProject(const fs::path& directory, const fs::path& sourceRoot,
   </Target>
 </Project>
 )";
-    return FileUtils::writeFile(directory / "Allio.Game.csproj", xml.str()) != FileUtils::WriteResult::Failed;
+    return xml.str();
+}
+
+bool writeProject(const fs::path& directory, const fs::path& sourceRoot,
+                  const std::vector<fs::path>& files, const fs::path& apiProject,
+                  bool recordDiagnostics) {
+    return FileUtils::writeFile(directory / "Allio.Game.csproj", projectContents(sourceRoot, files, apiProject, recordDiagnostics))
+        != FileUtils::WriteResult::Failed;
 }
 
 bool buildForPlay(const fs::path& root, const fs::path& cache, std::string& error) {

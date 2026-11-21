@@ -30,7 +30,7 @@ const char* headInstructions() {
 R"JE(# AllioEngine editor (MCP)
 
 You drive a running AllioEngine editor (Unity-style: Hierarchy, Inspector, Console, Scene and Game
-views; Lua or C++ scripts). Each tool edit is one undoable command, live to a human watching.
+views; C# gameplay scripts). Each tool edit is one undoable command, live to a human watching.
 Area references: jasper://docs/<area> (the list: jasper://docs).
 Text cut before "## Other areas"? read_file jasper://guide.
 
@@ -49,7 +49,7 @@ Text cut before "## Other areas"? read_file jasper://guide.
 1. Inspect: `editor_status`, the scenes, the GameObjects you will touch.
 2. Edit scenes, prefabs and settings with tools, never by hand-editing .scene/.prefab/project.yaml;
    many edits: one `batch` (undo_group: one undo step). Save the scenes you changed.
-3. Play the start scene; look: screenshot, get_runtime_entity / eval_lua, send_input / wait.
+3. Play the start scene; look: screenshot, get_runtime_entity, send_input / wait.
 4. Read the Console since your last cursor (read_console since); fix and repeat. Never claim a
    script works without playing it and reading the Console.
 A call past timeout_seconds returns a job id: get_job. An error lists the valid choices: fix the
@@ -71,7 +71,7 @@ The project is a normal folder (`editor_status`: project.path): read, edit, grep
 shaders and .material files with your own tools (write_file / read_file are for clients without file
 access), but a .tileset's masks or coverage: edit_tileset check, not its JSON. Your edits reload
 before your next call, whose result lists `external_changes` problems:
-fix them first. Open scenes and prefabs never reload from disk. Engine API: .jasperengine/engine-api/
+fix them first. Open scenes and prefabs never reload from disk. C# API: jasper://docs/csharp-scripting. Native and legacy API: .jasperengine/engine-api/
 (C++ headers, lua/ stubs) and search_engine_api. Check without playing: check_script, check_shader,
 compile_scripts (C++). .jasperengine/ and the root CMakeLists.txt are generated: never edit them.
 A .scene is in the project once project.yaml lists it (edit_build_scenes).
@@ -122,9 +122,10 @@ Library first: list_shaders, then a submesh material's shader (create_material /
 read the fork first (jasper://docs/shaders).
 
 ## HTML/CSS UI
-Menus and HUDs are standard HTML + CSS with Lua logic (no JavaScript): create_ui_document (template
-main_menu, hud, settings...) writes the files; edit them yourself; inspect_ui / assert_ui check
-layouts. Read jasper://docs/html-ui first.
+Menus and HUDs use HTML and CSS. create_ui_document writes the template files. Attach a C# Behaviour
+to the UI Document's GameObject and override OnClick(string elementId) to handle buttons. Legacy UI
+examples can opt into their Lua handler with script=true. inspect_ui and assert_ui check layouts.
+See jasper://docs/html-ui and jasper://docs/csharp-scripting.
 
 ## Other areas
 2D (points, y up), animation (edit_animation),

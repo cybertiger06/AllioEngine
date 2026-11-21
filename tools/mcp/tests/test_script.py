@@ -1,5 +1,8 @@
 """Public script editing contracts on a small project owned by this module."""
 
+import asyncio
+import shutil
+
 from harness import Editor
 
 EDITOR = {"create": True, "name": "Script Tools"}
@@ -88,6 +91,41 @@ async def test_check_script(ed: Editor):
     ed.check_eq(bad_default["ok"], False)
     ed.check(bad_default["errors"] and "speed" in str(bad_default["errors"]), "invalid property default has a located property error")
     await ed.check_alive()
+
+
+async def test_check_csharp_compiles_project_and_preview(ed: Editor):
+    good = "using AllioEngine;\npublic class Checker : Behaviour { public float Speed = 3f; }\n"
+    created = await ed.call("create_script", kind="csharp", directory="scripts", name="Checker", content=good)
+    path = created["path"]
+    original = (ed.project / path).read_bytes()
+
+    async def check(**arguments):
+        result = await ed.call("check_script", wait=False, **arguments)
+        while result.get("status") == "running":
+            await asyncio.sleep(0.5)
+            result = await ed.call("get_job", job_id=result["job_id"])
+        if "status" in result:
+            ed.check_eq(result["status"], "succeeded", result)
+            return result["result"]
+        return result
+
+    if not shutil.which("dotnet"):
+        await ed.check_error("check_script", {"path": path, "timeout_seconds": 60}, contains=".NET 10 SDK")
+        ed.check_eq((ed.project / path).read_bytes(), original, "a missing SDK preserves the source")
+        return
+
+    on_disk = await check(path=path)
+    ed.check_eq((on_disk["language"], on_disk["ok"], on_disk["errors"]), ("csharp", True, []))
+    broken = await check(path=path, code=good.replace("3f", "UnknownSpeed"))
+    ed.check_eq(broken["ok"], False)
+    diagnostic = broken["errors"][0]
+    ed.check_eq((diagnostic["code"], diagnostic["path"], diagnostic["line"]), ("CS0103", path, 2))
+    ed.check(diagnostic["col"] > 0, diagnostic)
+    snippet = await check(language="csharp", code="#warning ALLIO_CHECK\nclass Probe { public Checker Value = new Checker(); }")
+    ed.check(snippet["ok"], snippet)
+    ed.check(any(w["code"] == "CS1030" and w["path"] == "code" and w["line"] == 1 for w in snippet["warnings"]),
+             "inline diagnostics identify the preview without exposing its scratch path")
+    ed.check_eq((ed.project / path).read_bytes(), original, "the preview preserved the project source")
 
 
 async def test_write_file_reports_syntax_and_undoes(ed: Editor):

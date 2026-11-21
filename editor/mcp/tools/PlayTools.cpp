@@ -1536,7 +1536,7 @@ bool isScriptStartupError(const Json& entry) {
     const std::string message = entry.value("message", "");
     static const char* const markers[] = {
         "Lua Error:", "Lua script file not found", "Failed to load Lua file", "Failed to execute Lua module",
-        "did not return a table", "Script crash in scene"
+        "did not return a table", "Script crash in scene", "C# script error:"
     };
     for (const char* marker : markers) {
         if (message.find(marker) != std::string::npos) return true;
@@ -4312,7 +4312,7 @@ void registerPlayTools(McpRegistry& registry) {
         tool.activity = ToolActivity::Control;  // busy policy (McpServer::busyRefusal)
         tool.title = "Play Mode";
         tool.description =
-            "Control Play mode. start: saves modified scenes, builds C++ scripts if any (minutes), waits until "
+            "Control Play mode. start: saves modified scenes, builds C# and C++ scripts if present, waits until "
             "running; returns the state + console problems, or isError with compile/script errors; past "
             "timeout_seconds (or wait:false) a job_id (get_job). stop: restores the edit-time state, summarizes "
             "the session. step: advance a paused game `frames` frames. Script errors stop play.\nClock (any "

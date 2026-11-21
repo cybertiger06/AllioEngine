@@ -2099,13 +2099,15 @@ Attach a script file to a GameObject (adds the Script component if needed). path
 
 Group: `core`. Hints: read-only, idempotent
 
-Check a script without playing: Lua syntax (not run; ok false + error line), properties, lifecycle warnings; C++ header: class, kind, DPROPERTY fields (code: compile_scripts).
+Check C# with Roslyn against the project's scripts. Use path to select a file and code to preview a replacement or an additional source. Returns ok, errors and warnings with paths, codes and positions. Also checks Lua syntax and fields or C++ header declarations.
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `code` | string |  |  |
-| `language` | `"lua"` \| `"cpp_header"` \| `"cpp_source"` |  | Default: from the extension. |
+| `language` | `"csharp"` \| `"lua"` \| `"cpp_header"` \| `"cpp_source"` |  | Default: from the extension. |
 | `path` | string |  |  |
+| `timeout_seconds` | number |  | Seconds to wait for a C# job. Default: `15`. |
+| `wait` | boolean |  | Return a C# job immediately when false. Default: `true`. |
 
 
 ### `code_editor`

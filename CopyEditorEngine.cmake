@@ -28,7 +28,7 @@ endif()
 function(engine_keeps rel out)
     set(${out} FALSE PARENT_SCOPE)
     if(rel MATCHES "(^|/)(\\.cxx|\\.gradle|build|\\.git)(/|$)"
-       OR rel MATCHES "^tests/" OR rel STREQUAL "CMakePresets.json"
+       OR rel MATCHES "^managed/(.*/)?(bin|obj)/" OR rel MATCHES "^tests/" OR rel STREQUAL "CMakePresets.json"
        OR (INSTALL_EXCLUDES AND rel MATCHES "^libs/rmlui/Tests/"))
         return()
     endif()
@@ -123,6 +123,7 @@ file(COPY "${ENGINE_SOURCE}/" DESTINATION "${ENGINE_DEST}"
      PATTERN "build" EXCLUDE
      PATTERN ".git" EXCLUDE
      REGEX "/engine/tests$" EXCLUDE
+     REGEX "/engine/managed/(.*/)?(bin|obj)$" EXCLUDE
      REGEX "/engine/CMakePresets.json$" EXCLUDE)
 # a copy made before the exclusion still has one
 file(REMOVE "${ENGINE_DEST}/CMakePresets.json")

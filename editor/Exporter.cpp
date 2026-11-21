@@ -58,6 +58,7 @@
 #include "io/AtomicFile.h"
 #include "util/FileUtils.h"
 #include "util/CSharpBuild.h"
+#include "export/CSharpSources.h"
 #include "util/Util.h"
 #include "util/ShellEnv.h"
 #include "util/MsBuildProgress.h"
@@ -4505,18 +4506,12 @@ bool editor::Exporter::copyEngine() {
     };
 
     // A source export keeps the .cs files and an SDK-style project that CMake can rebuild.
-    const fs::path gameScripts = getExportProjectRoot() / "csharp";
-    if (managedSources.empty()) {
-        if (!removeStale(gameScripts / "Allio.Game.csproj")) return false;
-    } else {
-        if (!copyDir("managed")) return false;
-        for (const auto& file : managedSources) {
-            if (!copyOrFail(project->getProjectPath() / file, gameScripts / "src" / file)) return false;
-        }
-        if (!csharp::writeProject(gameScripts, "src", managedSources, "../../managed/Allio.Managed/Allio.Managed.csproj")) {
-            setError("Cannot generate the exported C# project");
-            return false;
-        }
+    if (!managedSources.empty() && !copyDir("managed")) return false;
+    const auto projectXml = csharp::projectContents("src", managedSources, "../../managed/Allio.Managed/Allio.Managed.csproj");
+    std::string scriptError;
+    if (!exportfiles::updateCSharpSources(config.targetDir, project ? project->getProjectPath() : fs::path(), managedSources, projectXml, scriptError)) {
+        setError(scriptError);
+        return false;
     }
     if (!copyDir("core")) return false;
     if (!copyDir("libs")) return false;

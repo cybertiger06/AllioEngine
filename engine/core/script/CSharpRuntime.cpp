@@ -5,6 +5,7 @@
 #include "Engine.h"
 #include "Input.h"
 #include "Log.h"
+#include "util/CrashHook.h"
 #include "component/Transform.h"
 #include "object/GameObject.h"
 #if JASPERENGINE_HTMLUI
@@ -109,7 +110,10 @@ namespace csharp {
 
     const managed::NativeApi native{
         [](int error, const char* text) {
-            if (error) Log::error("%s", text);
+            // The editor pauses and stops a failed script on the main thread. Loader and
+            // reflection diagnostics also come from the Play build worker and only go to the log.
+            if (error == 2 && CrashHook::report("C# script callback", text)) return;
+            if (error) Log::error("C# script error: %s", text);
             else Log::print("%s", text);
         },
         [](void* self, float* x, float* y, float* z) {
