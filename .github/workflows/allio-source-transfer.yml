@@ -1,0 +1,25 @@
+name: Import original engine history
+on:
+  push:
+    branches: [allio-source-transfer]
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Transfer the pinned public source and its commit history
+        shell: bash
+        run: |
+          set -eu
+          git fetch --no-tags https://github.com/Arakuma-Studio/JasperEngine.git 0fd6b8eb7c98a51d22373af19242cdefb36b40e0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git read-tree 0fd6b8eb7c98a51d22373af19242cdefb36b40e0
+          git add .github/workflows/allio-source-transfer.yml
+          tree=$(git write-tree)
+          commit=$(git commit-tree "$tree" -p HEAD -p 0fd6b8eb7c98a51d22373af19242cdefb36b40e0 -m "Stage the original JasperEngine history for transfer")
+          git push origin "$commit:refs/heads/allio-source-transfer"
